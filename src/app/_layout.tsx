@@ -86,6 +86,10 @@ function RootNavigator() {
           <Stack.Screen name="project-form" options={modal} />
           <Stack.Screen name="item-form" options={modal} />
           <Stack.Screen name="suggestion" options={modal} />
+          <Stack.Screen name="meal-form" options={modal} />
+          <Stack.Screen name="meals" options={modal} />
+          <Stack.Screen name="groceries" options={modal} />
+          <Stack.Screen name="store-mode" options={modal} />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
       </Stack>

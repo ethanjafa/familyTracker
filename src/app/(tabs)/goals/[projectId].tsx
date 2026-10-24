@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { setItemStatus, useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, EmptyState, HeaderButton, Loading, ProgressBar, Screen, SectionTitle, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { prettyDay, today } from '@/lib/dates';
+import { showAlert } from '@/lib/dialogs';
 import { ITEM_STATUS, money, NEXT_STATUS, projectStats, sortItems } from '@/lib/projects';
 import type { ProjectItem } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
@@ -27,7 +28,7 @@ export default function ProjectScreen() {
   const addItem = () => router.push({ pathname: '/item-form', params: { projectId: project.id } });
 
   const cycle = (item: ProjectItem) =>
-    setItemStatus(item, NEXT_STATUS[item.status]).catch((e) => Alert.alert('Could not update', e.message));
+    setItemStatus(item, NEXT_STATUS[item.status]).catch((e) => showAlert('Could not update', e.message));
 
   return (
     <>
@@ -88,6 +89,7 @@ export default function ProjectScreen() {
                     </ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {ITEM_STATUS[item.status].label}
+                      {item.planned_date && item.status !== 'done' ? ` · planned ${prettyDay(item.planned_date)}` : ''}
                       {item.due_date ? (
                         <ThemedText type="small" style={{ color: overdue ? theme.danger : theme.textSecondary }}>
                           {` · due ${prettyDay(item.due_date)}`}

@@ -1,8 +1,8 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
-import { archiveRoutine, saveRoutine } from '@/api/routines';
+import { archiveRoutine, deleteRoutine, saveRoutine } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Chip, ChipGroup, Field, Label, Loading, Screen, Segmented, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -10,6 +10,7 @@ import { useRoutineData } from '@/hooks/use-routine-data';
 import { hasDayAssignees, scheduleWeekdays } from '@/lib/schedule';
 import { type RoutineTemplate, routineIdeas } from '@/lib/suggestions';
 import type { Routine, Schedule, TimeOfDay } from '@/lib/types';
+import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -124,7 +125,7 @@ function RoutineFormBody({
       router.back();
     } catch (e) {
       const message = errorMessage(e);
-      Alert.alert(
+      showAlert(
         'Could not save',
         message.includes('day_assignees')
           ? 'Taking turns needs a quick database update. Run supabase/migrations/20261024000000_day_assignees.sql in the Supabase SQL Editor, then try again.'
@@ -134,18 +135,25 @@ function RoutineFormBody({
     }
   };
 
-  const archive = () =>
-    Alert.alert('Archive routine?', 'It stops showing up. Past check-ins stay in your history.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Archive',
-        style: 'destructive',
-        onPress: async () => {
-          await archiveRoutine(existing!.id);
-          router.back();
-        },
-      },
-    ]);
+  const archive = async () => {
+    if (!(await confirmAsync('Archive routine?', 'It stops showing up. Past check-ins stay in your history.', 'Archive'))) return;
+    try {
+      await archiveRoutine(existing!.id);
+      router.back();
+    } catch (e) {
+      showAlert('Could not archive', errorMessage(e));
+    }
+  };
+
+  const remove = async () => {
+    if (!(await confirmAsync('Delete routine?', 'The routine and all of its check-ins will be deleted from every scorecard.'))) return;
+    try {
+      await deleteRoutine(existing!.id);
+      router.back();
+    } catch (e) {
+      showAlert('Could not delete', errorMessage(e));
+    }
+  };
 
   return (
     <>
@@ -279,7 +287,8 @@ function RoutineFormBody({
         )}
 
         <Button title="Save" onPress={save} loading={busy} disabled={!valid} />
-        {existing && <Button title="Archive routine" variant="danger" onPress={archive} />}
+        {existing && <Button title="Archive routine" variant="secondary" onPress={archive} />}
+        {existing && <Button title="Delete routine" variant="danger" onPress={remove} />}
       </Screen>
     </>
   );

@@ -8,7 +8,10 @@
     "scheme": "tracker",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.ehsanjafarzadeh.dragonboat"
+      "bundleIdentifier": "com.ehsanjafarzadeh.dragonboat",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.ehsanjafarzadeh.dragonboat",
@@ -39,6 +42,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "b0424c4d-209c-49b8-bf34-60eebbf5e875"
+      }
     }
   }
 }

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { subWeeks } from 'date-fns';
-import { Alert } from 'react-native';
 
 import { toDay, weekStart } from '@/lib/dates';
+import { showAlert } from '@/lib/dialogs';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { LogStatus, Routine, RoutineCategory, RoutineLog } from '@/lib/types';
@@ -121,6 +121,14 @@ export async function archiveRoutine(id: string) {
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
+/** Deleting removes the routine and all of its check-ins from every scorecard. */
+export async function deleteRoutine(id: string) {
+  const { error } = await supabase.from('routines').delete().eq('id', id);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['routines'] });
+  await queryClient.invalidateQueries({ queryKey: ['routine_logs'] });
+}
+
 /** Set (or clear, with null) a routine's log for a day. Updates the cache optimistically. */
 export async function setLog(routine: Routine, day: string, status: LogStatus | null, userId: string) {
   const key = ['routine_logs', routine.household_id];
@@ -154,6 +162,6 @@ export async function setLog(routine: Routine, day: string, status: LogStatus | 
         { onConflict: 'routine_id,log_date' },
       )
     : await supabase.from('routine_logs').delete().eq('routine_id', routine.id).eq('log_date', day);
-  if (error) Alert.alert('Could not save', error.message);
+  if (error) showAlert('Could not save', error.message);
   await queryClient.invalidateQueries({ queryKey: key });
 }

@@ -133,7 +133,7 @@ export function streak(routine: Routine, logs: LogIndex, now = new Date()): numb
 
 /**
  * Routines that count towards a person's own score: their personal ones plus family ones assigned to them.
- * Turn-taking routines are narrowed to that person's weekdays, so they're only scored on their own days.
+ * Family ones are narrowed to that person (`scoredFor`), so turn-taking and planned swaps only count on their days.
  */
 export function routinesFor(
   userId: string,
@@ -144,11 +144,11 @@ export function routinesFor(
     const c = categories.get(r.category_id);
     if (!c) return [];
     if (c.visibility === 'personal') return c.owner_id === userId ? [r] : [];
-    if (hasDayAssignees(r)) {
-      const days = daysAssignedTo(r, userId);
-      return days.length ? [{ ...r, schedule: { type: 'weekdays', days } }] : [];
-    }
-    return r.assignee_ids.includes(userId) ? [r] : [];
+    const involved =
+      r.assignee_ids.includes(userId) ||
+      (hasDayAssignees(r) && daysAssignedTo(r, userId).length > 0) ||
+      [...(r.plans?.values() ?? [])].some((p) => p.planned && p.assignee_id === userId);
+    return involved ? [{ ...r, scoredFor: userId }] : [];
   });
 }
 

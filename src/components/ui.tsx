@@ -13,12 +13,13 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, colorFor, FontFamilies, IconChoices, Radius, Shadow, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamilies, IconChoices, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { toDay } from '@/lib/dates';
 import { type Band, band } from '@/lib/scoring';
 import type { Profile } from '@/lib/types';
+import { useHouseholdState } from '@/providers/household-provider';
 
 /** Light mode floats cards on soft shadows; dark mode separates them with borders. */
 export function useElevation(level: keyof typeof Shadow = 'card'): ViewStyle {
@@ -274,6 +275,7 @@ export function ScorePill({ value }: { value: number | null }) {
 
 export function Avatar({ profile, size = 28 }: { profile: Profile | undefined; size?: number }) {
   const theme = useTheme();
+  const { memberColor } = useHouseholdState();
   const initial = profile?.display_name.trim().charAt(0).toUpperCase() || '?';
   return (
     <View
@@ -281,7 +283,7 @@ export function Avatar({ profile, size = 28 }: { profile: Profile | undefined; s
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colorFor(profile?.id),
+        backgroundColor: memberColor(profile?.id),
         borderWidth: size >= 28 ? 2 : 1.5,
         borderColor: theme.card,
         alignItems: 'center',

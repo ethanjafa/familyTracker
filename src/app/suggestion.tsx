@@ -1,12 +1,13 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { addCategoryWithRoutines } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, EmptyState, IconTile, Screen, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { showAlert } from '@/lib/dialogs';
 import { describeSchedule } from '@/lib/schedule';
 import { getTemplate } from '@/lib/suggestions';
 import { errorMessage } from '@/lib/errors';
@@ -42,7 +43,7 @@ export default function SuggestionScreen() {
       );
       router.back();
     } catch (e) {
-      Alert.alert('Could not add', errorMessage(e));
+      showAlert('Could not add', errorMessage(e));
       setBusy(false);
     }
   };

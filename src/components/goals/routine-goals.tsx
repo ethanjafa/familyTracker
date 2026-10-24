@@ -1,6 +1,6 @@
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { addRoutines } from '@/api/routines';
@@ -10,13 +10,10 @@ import {
   Button,
   Card,
   EmptyState,
-  HeaderButton,
   IconTile,
   Loading,
-  Screen,
   ScorePill,
   SectionTitle,
-  Segmented,
   styles,
   useElevation,
 } from '@/components/ui';
@@ -24,6 +21,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { weekStart } from '@/lib/dates';
+import { showAlert } from '@/lib/dialogs';
 import { describeSchedule, hasDayAssignees } from '@/lib/schedule';
 import { pct, scoreRoutine, scoreRoutines, streak } from '@/lib/scoring';
 import { type RoutineTemplate, suggestedCategories, suggestedRoutines } from '@/lib/suggestions';
@@ -32,75 +30,61 @@ import { useHousehold } from '@/providers/household-provider';
 
 const TIME_LABEL = { morning: 'Morning', day: 'Day', evening: 'Evening', anytime: '' };
 
-export default function RoutinesScreen() {
+/** Goals → Routines: categories with their routines, plus suggestions. */
+export function RoutineGoals({ visibility }: { visibility: Visibility }) {
   const data = useRoutineData();
-  const [visibility, setVisibility] = useState<Visibility>('personal');
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const categories = data.categories.filter((c) => c.visibility === visibility);
   const addCategory = () => router.push({ pathname: '/category-form', params: { visibility } });
   const toggle = (id: string) =>
-    setCollapsed((s) => {
+    setExpanded((s) => {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  const allCollapsed = categories.length > 0 && categories.every((c) => collapsed.has(c.id));
+  const allCollapsed = categories.every((c) => !expanded.has(c.id));
+
+  if (data.isLoading) return <Loading />;
 
   return (
     <>
-      <Stack.Screen
-        options={{ title: 'Routines', headerRight: () => <HeaderButton title="+" onPress={addCategory} /> }}
-      />
-      <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
-        <Segmented
-          options={[
-            { value: 'personal', label: '🙋 Personal' },
-            { value: 'family', label: '👨‍👩‍👧 Family' },
-          ]}
-          value={visibility}
-          onChange={setVisibility}
+      {categories.length === 0 ? (
+        <EmptyState
+          icon={visibility === 'personal' ? '🧘' : '🏠'}
+          title={`No ${visibility} categories yet`}
+          body={
+            visibility === 'personal'
+              ? 'Start from a suggestion below, or create your own.'
+              : 'Start from a suggestion below, or create your own. Family routines are shared with everyone at home.'
+          }
+          action={<Button title="Create my own" variant="secondary" onPress={addCategory} />}
         />
+      ) : (
+        <>
+          <Pressable
+            onPress={() => setExpanded(allCollapsed ? new Set(categories.map((c) => c.id)) : new Set())}
+            hitSlop={8}
+            style={{ alignSelf: 'flex-end' }}>
+            <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </ThemedText>
+          </Pressable>
+          {categories.map((c) => (
+            <CategoryCard
+              key={c.id}
+              category={c}
+              routines={data.routines.filter((r) => r.category_id === c.id)}
+              logIndex={data.logIndex}
+              open={expanded.has(c.id)}
+              onToggle={() => toggle(c.id)}
+            />
+          ))}
+        </>
+      )}
 
-        {data.isLoading ? (
-          <Loading />
-        ) : categories.length === 0 ? (
-          <EmptyState
-            icon={visibility === 'personal' ? '🧘' : '🏠'}
-            title={`No ${visibility} categories yet`}
-            body={
-              visibility === 'personal'
-                ? 'Start from a suggestion below, or create your own.'
-                : 'Start from a suggestion below, or create your own. Family routines are shared with everyone at home.'
-            }
-            action={<Button title="Create my own" variant="secondary" onPress={addCategory} />}
-          />
-        ) : (
-          <>
-            <Pressable
-              onPress={() => setCollapsed(allCollapsed ? new Set() : new Set(categories.map((c) => c.id)))}
-              hitSlop={8}
-              style={{ alignSelf: 'flex-end' }}>
-              <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
-                {allCollapsed ? 'Expand all' : 'Collapse all'}
-              </ThemedText>
-            </Pressable>
-            {categories.map((c) => (
-              <CategoryCard
-                key={c.id}
-                category={c}
-                routines={data.routines.filter((r) => r.category_id === c.id)}
-                logIndex={data.logIndex}
-                open={!collapsed.has(c.id)}
-                onToggle={() => toggle(c.id)}
-              />
-            ))}
-          </>
-        )}
-
-        {!data.isLoading && <SuggestedCategories visibility={visibility} categories={categories} />}
-      </Screen>
+      <SuggestedCategories visibility={visibility} categories={categories} />
     </>
   );
 }
@@ -126,7 +110,7 @@ function CategoryCard({
   const editCategory = () => router.push({ pathname: '/category-form', params: { id: category.id } });
   const ideas = suggestedRoutines(category, routines);
   const addIdea = (t: RoutineTemplate) =>
-    addRoutines(category.household_id, category.id, [t]).catch((e) => Alert.alert('Could not add', e.message));
+    addRoutines(category.household_id, category.id, [t]).catch((e) => showAlert('Could not add', e.message));
 
   return (
     <Animated.View

@@ -8,6 +8,7 @@ Routines, projects and scorecards for the whole family, built with Expo (React N
 - **Projects**: project → steps (e.g. *Renovation → Laminate change*), with status, owner, due date, cost and budget.
 - **Personal vs family**: personal items are visible only to you (enforced by Row Level Security); family items are shared with everyone in the household.
 - **Scorecards**: weekly and monthly scores per person or for the family, an 8-week trend, per-category breakdown, streaks, who did what, and rule-based feedback.
+- **Plan**: one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and project steps; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Have** or **Need**, filled automatically from planned meals, with a **Store mode** for shopping.
 - **Live sync**: changes appear on every family member's phone through Supabase Realtime.
 
 ## 1. Create the Supabase backend (one time)
@@ -16,6 +17,11 @@ Routines, projects and scorecards for the whole family, built with Expo (React N
 2. Open **SQL Editor** and run each file in [supabase/migrations/](supabase/migrations/), oldest first:
    - [20261023000000_init.sql](supabase/migrations/20261023000000_init.sql): tables and security policies
    - [20261024000000_day_assignees.sql](supabase/migrations/20261024000000_day_assignees.sql): taking turns by day
+   - [20261025000000_remove_member.sql](supabase/migrations/20261025000000_remove_member.sql): removing family members
+   - [20261026000000_planning.sql](supabase/migrations/20261026000000_planning.sql): weekly planning, meals and groceries
+   - [20261027000000_planning_day.sql](supabase/migrations/20261027000000_planning_day.sql): the family's planning day and its weekly task
+   - [20261028000000_dinner_cooks.sql](supabase/migrations/20261028000000_dinner_cooks.sql): a cook for a day before its meal is chosen
+   - [20261029000000_lunch.sql](supabase/migrations/20261029000000_lunch.sql): lunch as well as dinner in meal planning
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
    - `tracker://**` (installed builds)
@@ -33,7 +39,7 @@ npx expo start
 
 Install **Expo Go** from the App Store or Play Store and scan the QR code (on iPhone, use the Camera app). Both phones need to be on the same Wi-Fi as your PC. Otherwise run `npx expo start --tunnel`.
 
-The first person signs in, creates the household, and on the **Family** tab taps **Invite a family member** to share a 6-character code. The second person signs in and chooses **Join with code**.
+The first person signs in, creates the household, and on the **Settings** tab taps **Invite a family member** to share a 6-character code. The second person signs in and chooses **Join with code**.
 
 > **Corporate network:** this machine has `NODE_OPTIONS=--use-system-ca` set so npm trusts the Windows certificate store.
 
@@ -42,10 +48,10 @@ The first person signs in, creates the household, and on the **Family** tab taps
 ```
 src/app/                 screens (Expo Router)
   (tabs)/(today)         Today: what's due, one tap to check off
-  (tabs)/routines        categories → routines
-  (tabs)/projects        projects → steps
+  (tabs)/plan            the week table: who does each routine, dinner and project step
+  (tabs)/goals           routines (categories → routines) and projects (→ steps)
   (tabs)/scorecard       scores, trends, feedback
-  (tabs)/family          members, invites, profile
+  (tabs)/settings        family members (invite/remove), profile
   *-form.tsx             create/edit modals
 src/api/                 Supabase queries and mutations (TanStack Query)
 src/lib/schedule.ts      when a routine is due

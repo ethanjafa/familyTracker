@@ -1,11 +1,11 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { deleteProject, saveProject, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChipGroup, DateField, Field, IconPicker, isValidDay, Label, Loading, Screen, Segmented } from '@/components/ui';
 import type { Project, ProjectStatus, Visibility } from '@/lib/types';
+import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -47,23 +47,20 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
       });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', errorMessage(e));
+      showAlert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };
 
-  const remove = () =>
-    Alert.alert('Delete project?', 'All of its steps will be deleted too.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteProject(existing!.id);
-          router.dismissTo('/projects');
-        },
-      },
-    ]);
+  const remove = async () => {
+    if (!(await confirmAsync('Delete project?', 'All of its steps will be deleted too.'))) return;
+    try {
+      await deleteProject(existing!.id);
+      router.dismissTo({ pathname: '/goals', params: { section: 'projects' } });
+    } catch (e) {
+      showAlert('Could not delete', errorMessage(e));
+    }
+  };
 
   return (
     <>
@@ -76,8 +73,8 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
             <Label>Who is it for</Label>
             <Segmented
               options={[
-                { value: 'personal', label: '🙋 Just me' },
                 { value: 'family', label: '👨‍👩‍👧 Family' },
+                { value: 'personal', label: '🙋 Just me' },
               ]}
               value={visibility}
               onChange={setVisibility}

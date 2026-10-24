@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { signInWith } from '@/lib/auth';
+import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 
 const HIGHLIGHTS = [
@@ -26,7 +27,7 @@ export default function SignInScreen() {
     try {
       await signInWith('google');
     } catch (e) {
-      Alert.alert('Sign-in failed', errorMessage(e));
+      showAlert('Sign-in failed', errorMessage(e));
     } finally {
       setBusy(false);
     }
