@@ -1,6 +1,7 @@
 import { createContext, type PropsWithChildren, useContext, useMemo } from 'react';
 
 import { useHouseholdQuery, useMembersQuery } from '@/api/household';
+import { colorFor, Palette } from '@/constants/theme';
 import { useRealtimeSync } from '@/hooks/use-realtime-sync';
 import type { Household, Member } from '@/lib/types';
 import { useAuth } from '@/providers/auth-provider';
@@ -10,6 +11,8 @@ type HouseholdState = {
   household: Household | null;
   members: Member[];
   memberById: Map<string, Member>;
+  /** Each member's own colour, so nobody in the family shares one. */
+  memberColor: (userId: string | undefined) => string;
   loading: boolean;
 };
 
@@ -26,11 +29,14 @@ export function HouseholdProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<HouseholdState>(() => {
     const members = membersQuery.data ?? [];
+    // Members come in the order they joined, so colours stay put as the family grows.
+    const colors = new Map(members.map((m, i) => [m.user_id, Palette[i % Palette.length]]));
     return {
       userId,
       household,
       members,
       memberById: new Map(members.map((m) => [m.user_id, m])),
+      memberColor: (id) => (id && colors.get(id)) || colorFor(id),
       loading: !!userId && householdQuery.isPending,
     };
   }, [userId, household, membersQuery.data, householdQuery.isPending]);

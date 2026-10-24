@@ -20,12 +20,12 @@ const FAMILY = 'family';
 export default function ScorecardScreen() {
   const theme = useTheme();
   const bandColor = useBandColor();
-  const { userId, members, memberById } = useHousehold();
+  const { userId, members, memberById, memberColor } = useHousehold();
   const data = useRoutineData();
   const projects = useProjects();
   const items = useProjectItems();
   const [period, setPeriod] = useState<Period>('week');
-  const [scope, setScope] = useState<string>(userId);
+  const [scope, setScope] = useState<string>(FAMILY);
 
   if (data.isLoading || projects.isPending || items.isPending) return <Loading />;
 
@@ -98,6 +98,7 @@ export default function ScorecardScreen() {
           onChange={setPeriod}
         />
         <View style={styles.wrap}>
+          <Chip label="👨‍👩‍👧 Family" selected={scope === FAMILY} onPress={() => setScope(FAMILY)} />
           {members.map((m) => (
             <Chip
               key={m.user_id}
@@ -106,7 +107,6 @@ export default function ScorecardScreen() {
               onPress={() => setScope(m.user_id)}
             />
           ))}
-          <Chip label="👨‍👩‍👧 Family" selected={scope === FAMILY} onPress={() => setScope(FAMILY)} />
         </View>
 
         <Card style={{ alignItems: 'center', paddingVertical: 24 }}>
@@ -223,7 +223,7 @@ export default function ScorecardScreen() {
                         {value} check-ins · {share}%
                       </ThemedText>
                     </View>
-                    <ProgressBar value={share} color={m.profile.color} />
+                    <ProgressBar value={share} color={memberColor(m.user_id)} />
                   </View>
                 );
               })}
@@ -246,7 +246,7 @@ export default function ScorecardScreen() {
                     </ThemedText>
                     <ThemedText type="smallBold">{p.percent}%</ThemedText>
                   </View>
-                  <ProgressBar value={p.percent} color={scopedProjects[i].color} />
+                  <ProgressBar value={p.percent} color={theme.tint} />
                 </View>
               ))}
             </Card>

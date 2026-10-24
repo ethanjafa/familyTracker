@@ -14,7 +14,9 @@ import {
 import { fromDay, toDay } from '@/lib/dates';
 import {
   completedBetween,
+  daysAssignedTo,
   flexibleTarget,
+  hasDayAssignees,
   isFixedDueOn,
   isFlexible,
   logValue,
@@ -129,16 +131,24 @@ export function streak(routine: Routine, logs: LogIndex, now = new Date()): numb
   return count;
 }
 
-/** Routines that count towards a person's own score: their personal ones plus family ones assigned to them. */
+/**
+ * Routines that count towards a person's own score: their personal ones plus family ones assigned to them.
+ * Family ones are narrowed to that person (`scoredFor`), so turn-taking and planned swaps only count on their days.
+ */
 export function routinesFor(
   userId: string,
   routines: Routine[],
   categories: Map<string, RoutineCategory>,
 ): Routine[] {
-  return routines.filter((r) => {
+  return routines.flatMap((r): Routine[] => {
     const c = categories.get(r.category_id);
-    if (!c) return false;
-    return c.visibility === 'personal' ? c.owner_id === userId : r.assignee_ids.includes(userId);
+    if (!c) return [];
+    if (c.visibility === 'personal') return c.owner_id === userId ? [r] : [];
+    const involved =
+      r.assignee_ids.includes(userId) ||
+      (hasDayAssignees(r) && daysAssignedTo(r, userId).length > 0) ||
+      [...(r.plans?.values() ?? [])].some((p) => p.planned && p.assignee_id === userId);
+    return involved ? [{ ...r, scoredFor: userId }] : [];
   });
 }
 

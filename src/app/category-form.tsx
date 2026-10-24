@@ -1,11 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 import { deleteCategory, saveCategory, useCategories } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
-import { Button, ColorPicker, Field, IconPicker, Label, Loading, Screen, Segmented } from '@/components/ui';
+import { Button, Field, IconPicker, Label, Loading, Screen, Segmented } from '@/components/ui';
 import type { RoutineCategory, Visibility } from '@/lib/types';
+import { confirmAsync, showAlert } from '@/lib/dialogs';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function CategoryForm() {
@@ -13,40 +14,36 @@ export default function CategoryForm() {
   const categories = useCategories();
   if (params.id && categories.isPending) return <Loading />;
   const existing = categories.data?.find((c) => c.id === params.id);
-  return <CategoryFormBody existing={existing} defaultVisibility={params.visibility ?? 'personal'} />;
+  return <CategoryFormBody existing={existing} defaultVisibility={params.visibility ?? 'family'} />;
 }
 
 function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineCategory; defaultVisibility: Visibility }) {
   const { household } = useHousehold();
   const [name, setName] = useState(existing?.name ?? '');
   const [icon, setIcon] = useState(existing?.icon ?? '🏠');
-  const [color, setColor] = useState(existing?.color ?? '#208AEF');
   const [visibility, setVisibility] = useState<Visibility>(existing?.visibility ?? defaultVisibility);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon, color, visibility });
+      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon, visibility });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      showAlert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };
 
-  const remove = () =>
-    Alert.alert('Delete category?', 'All routines in it and their history will be deleted.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteCategory(existing!.id);
-          router.dismissTo('/routines');
-        },
-      },
-    ]);
+  const remove = async () => {
+    if (!(await confirmAsync('Delete category?', 'All routines in it and their history will be deleted.'))) return;
+    try {
+      await deleteCategory(existing!.id);
+      router.dismissTo({ pathname: '/goals', params: { section: 'routines' } });
+    } catch (e) {
+      showAlert('Could not delete', errorMessage(e));
+    }
+  };
 
   return (
     <>
@@ -58,8 +55,8 @@ function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineC
             <Label>Who is it for</Label>
             <Segmented
               options={[
-                { value: 'personal', label: '🙋 Just me' },
                 { value: 'family', label: '👨‍👩‍👧 Family' },
+                { value: 'personal', label: '🙋 Just me' },
               ]}
               value={visibility}
               onChange={setVisibility}
@@ -73,8 +70,6 @@ function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineC
         )}
         <Label>Icon</Label>
         <IconPicker value={icon} onChange={setIcon} />
-        <Label>Color</Label>
-        <ColorPicker value={color} onChange={setColor} />
         <Button title="Save" onPress={save} loading={busy} disabled={!name.trim()} />
         {existing && <Button title="Delete category" variant="danger" onPress={remove} />}
       </Screen>

@@ -10,7 +10,12 @@ const TABLES: Record<string, string[]> = {
   routine_logs: ['routine_logs'],
   projects: ['projects'],
   project_items: ['project_items'],
+  routine_plans: ['routine_plans'],
+  meals: ['meals'],
+  meal_plans: ['meal_plans'],
+  grocery_items: ['grocery_items'],
   household_members: ['household_members', 'households'],
+  households: ['households'],
   profiles: ['household_members'],
 };
 

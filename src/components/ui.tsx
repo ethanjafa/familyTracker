@@ -13,11 +13,19 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, IconChoices, Palette, Spacing } from '@/constants/theme';
+import { BottomTabInset, FontFamilies, IconChoices, Radius, Shadow, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { toDay } from '@/lib/dates';
 import { type Band, band } from '@/lib/scoring';
 import type { Profile } from '@/lib/types';
+import { useHouseholdState } from '@/providers/household-provider';
+
+/** Light mode floats cards on soft shadows; dark mode separates them with borders. */
+export function useElevation(level: keyof typeof Shadow = 'card'): ViewStyle {
+  const dark = useColorScheme() === 'dark';
+  return dark ? {} : { boxShadow: Shadow[level] };
+}
 
 export function Screen({
   children,
@@ -31,7 +39,9 @@ export function Screen({
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.screen}
-      refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> : undefined}>
+      refreshControl={
+        onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} colors={[theme.tint]} /> : undefined
+      }>
       {children}
     </ScrollView>
   );
@@ -39,10 +49,13 @@ export function Screen({
 
 export function Card({ children, style, onPress }: PropsWithChildren<{ style?: ViewStyle; onPress?: () => void }>) {
   const theme = useTheme();
-  const body = <View style={[styles.card, { backgroundColor: theme.backgroundElement }, style]}>{children}</View>;
+  const elevation = useElevation();
+  const body = (
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, elevation, style]}>{children}</View>
+  );
   if (!onPress) return body;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
       {body}
     </Pressable>
   );
@@ -64,22 +77,24 @@ export function Button({
   icon?: ReactNode;
 }) {
   const theme = useTheme();
-  const bg = variant === 'primary' ? theme.tint : variant === 'danger' ? 'transparent' : theme.backgroundElement;
-  const fg = variant === 'primary' ? theme.onTint : variant === 'danger' ? theme.danger : theme.text;
+  const glow = useElevation('brand');
+  const bg = variant === 'primary' ? theme.tint : variant === 'danger' ? 'transparent' : theme.tintSoft;
+  const fg = variant === 'primary' ? theme.onTint : variant === 'danger' ? theme.danger : theme.tint;
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: bg, opacity: disabled ? 0.5 : pressed ? 0.75 : 1 },
+        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+        variant === 'primary' && !disabled && glow,
       ]}>
       {loading ? (
         <ActivityIndicator color={fg} />
       ) : (
         <>
           {icon}
-          <ThemedText style={{ color: fg, fontWeight: 600 }}>{title}</ThemedText>
+          <ThemedText style={{ color: fg, fontWeight: 700 }}>{title}</ThemedText>
         </>
       )}
     </Pressable>
@@ -88,9 +103,16 @@ export function Button({
 
 export function HeaderButton({ title, onPress }: { title: string; onPress: () => void }) {
   const theme = useTheme();
+  const isPlus = title === '+';
   return (
-    <Pressable onPress={onPress} hitSlop={12} style={{ paddingHorizontal: Spacing.two }}>
-      <ThemedText style={{ color: theme.tint, fontWeight: 600, fontSize: title === '+' ? 28 : 16 }}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={12}
+      style={({ pressed }) => [
+        isPlus ? [styles.headerPlus, { backgroundColor: theme.tintSoft }] : { paddingHorizontal: Spacing.two },
+        { opacity: pressed ? 0.7 : 1 },
+      ]}>
+      <ThemedText style={{ color: theme.tint, fontWeight: 700, fontSize: isPlus ? 22 : 16, lineHeight: isPlus ? 26 : 22 }}>
         {title}
       </ThemedText>
     </Pressable>
@@ -100,15 +122,16 @@ export function HeaderButton({ title, onPress }: { title: string; onPress: () =>
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
   const theme = useTheme();
   return (
-    <View style={{ gap: Spacing.one }}>
+    <View style={{ gap: Spacing.two }}>
       <Label>{label}</Label>
       <TextInput
         placeholderTextColor={theme.textSecondary}
+        selectionColor={theme.tint}
         {...props}
         style={[
           styles.input,
-          { backgroundColor: theme.backgroundElement, color: theme.text },
-          props.multiline && { minHeight: 80, textAlignVertical: 'top' },
+          { backgroundColor: theme.backgroundElement, color: theme.text, fontFamily: FontFamilies[500] },
+          props.multiline && { minHeight: 88, textAlignVertical: 'top' },
         ]}
       />
     </View>
@@ -147,7 +170,7 @@ export function DateField({ label, value, onChange }: { label: string; value: st
 
 export function Label({ children }: PropsWithChildren) {
   return (
-    <ThemedText type="smallBold" themeColor="textSecondary" style={{ textTransform: 'uppercase' }}>
+    <ThemedText type="small" themeColor="textSecondary" style={{ fontWeight: 600 }}>
       {children}
     </ThemedText>
   );
@@ -158,8 +181,15 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, { backgroundColor: selected ? theme.tint : theme.backgroundElement }]}>
-      <ThemedText type="small" style={{ color: selected ? theme.onTint : theme.text }}>
+      style={({ pressed }) => [
+        styles.chip,
+        {
+          backgroundColor: selected ? theme.tint : theme.card,
+          borderColor: selected ? theme.tint : theme.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}>
+      <ThemedText type="small" style={{ color: selected ? theme.onTint : theme.text, fontWeight: selected ? 700 : 500 }}>
         {label}
       </ThemedText>
     </Pressable>
@@ -194,6 +224,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   const theme = useTheme();
+  const elevation = useElevation();
   return (
     <View style={[styles.segmented, { backgroundColor: theme.backgroundElement }]}>
       {options.map((o) => {
@@ -202,8 +233,10 @@ export function Segmented<T extends string>({
           <Pressable
             key={o.value}
             onPress={() => onChange(o.value)}
-            style={[styles.segment, selected && { backgroundColor: theme.background }]}>
-            <ThemedText type={selected ? 'smallBold' : 'small'}>{o.label}</ThemedText>
+            style={[styles.segment, selected && [{ backgroundColor: theme.card }, elevation]]}>
+            <ThemedText type="small" style={{ fontWeight: selected ? 700 : 500 }} themeColor={selected ? 'text' : 'textSecondary'}>
+              {o.label}
+            </ThemedText>
           </Pressable>
         );
       })}
@@ -217,12 +250,12 @@ export function useBandColor() {
     b === 'good' ? theme.success : b === 'ok' ? theme.warning : b === 'bad' ? theme.danger : theme.textSecondary;
 }
 
-export function ProgressBar({ value, color }: { value: number; color?: string }) {
+export function ProgressBar({ value, color, track }: { value: number; color?: string; track?: string }) {
   const theme = useTheme();
   const bandColor = useBandColor();
   const clamped = Math.max(0, Math.min(100, value));
   return (
-    <View style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>
+    <View style={[styles.track, { backgroundColor: track ?? theme.backgroundElement }]}>
       <View style={[styles.fill, { width: `${clamped}%`, backgroundColor: color ?? bandColor(band(value)) }]} />
     </View>
   );
@@ -230,9 +263,10 @@ export function ProgressBar({ value, color }: { value: number; color?: string })
 
 export function ScorePill({ value }: { value: number | null }) {
   const bandColor = useBandColor();
+  const color = bandColor(band(value));
   return (
-    <View style={[styles.pill, { borderColor: bandColor(band(value)) }]}>
-      <ThemedText type="smallBold" style={{ color: bandColor(band(value)) }}>
+    <View style={[styles.pill, { backgroundColor: `${color}1F` }]}>
+      <ThemedText type="smallBold" style={{ color }}>
         {value === null ? '—' : `${value}%`}
       </ThemedText>
     </View>
@@ -240,6 +274,8 @@ export function ScorePill({ value }: { value: number | null }) {
 }
 
 export function Avatar({ profile, size = 28 }: { profile: Profile | undefined; size?: number }) {
+  const theme = useTheme();
+  const { memberColor } = useHouseholdState();
   const initial = profile?.display_name.trim().charAt(0).toUpperCase() || '?';
   return (
     <View
@@ -247,21 +283,24 @@ export function Avatar({ profile, size = 28 }: { profile: Profile | undefined; s
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: profile?.color ?? '#7A8A99',
+        backgroundColor: memberColor(profile?.id),
+        borderWidth: size >= 28 ? 2 : 1.5,
+        borderColor: theme.card,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <ThemedText style={{ color: '#fff', fontSize: size * 0.45, lineHeight: size * 0.6, fontWeight: 700 }}>
+      <ThemedText style={{ color: '#fff', fontSize: size * 0.42, lineHeight: size * 0.56, fontWeight: 700 }}>
         {initial}
       </ThemedText>
     </View>
   );
 }
 
-export function IconTile({ icon, color, size = 40 }: { icon: string; color: string; size?: number }) {
+export function IconTile({ icon, size = 44 }: { icon: string; size?: number }) {
+  const theme = useTheme();
   return (
-    <View style={[styles.iconTile, { width: size, height: size, backgroundColor: `${color}33` }]}>
-      <ThemedText style={{ fontSize: size * 0.5, lineHeight: size * 0.65 }}>{icon}</ThemedText>
+    <View style={[styles.iconTile, { width: size, height: size, borderRadius: size * 0.32, backgroundColor: theme.tintSoft }]}>
+      <ThemedText style={{ fontSize: size * 0.48, lineHeight: size * 0.64 }}>{icon}</ThemedText>
     </View>
   );
 }
@@ -274,27 +313,15 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
         <Pressable
           key={icon}
           onPress={() => onChange(icon)}
-          style={[styles.pickCell, { backgroundColor: icon === value ? theme.backgroundSelected : 'transparent' }]}>
+          style={[
+            styles.pickCell,
+            {
+              backgroundColor: icon === value ? theme.tintSoft : 'transparent',
+              borderColor: icon === value ? theme.tint : 'transparent',
+            },
+          ]}>
           <ThemedText style={{ fontSize: 24, lineHeight: 32 }}>{icon}</ThemedText>
         </Pressable>
-      ))}
-    </View>
-  );
-}
-
-export function ColorPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.wrap}>
-      {Palette.map((color) => (
-        <Pressable
-          key={color}
-          onPress={() => onChange(color)}
-          style={[
-            styles.swatch,
-            { backgroundColor: color, borderColor: color === value ? theme.text : 'transparent' },
-          ]}
-        />
       ))}
     </View>
   );
@@ -303,7 +330,7 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (v: 
 export function SectionTitle({ children, right }: PropsWithChildren<{ right?: ReactNode }>) {
   return (
     <View style={styles.sectionTitle}>
-      <ThemedText type="smallBold" themeColor="textSecondary" style={{ textTransform: 'uppercase' }}>
+      <ThemedText type="heading" style={{ fontSize: 17 }}>
         {children}
       </ThemedText>
       {right}
@@ -312,36 +339,39 @@ export function SectionTitle({ children, right }: PropsWithChildren<{ right?: Re
 }
 
 export function EmptyState({ icon, title, body, action }: { icon: string; title: string; body: string; action?: ReactNode }) {
+  const theme = useTheme();
   return (
     <View style={styles.empty}>
-      <ThemedText style={{ fontSize: 44, lineHeight: 56 }}>{icon}</ThemedText>
-      <ThemedText type="smallBold" style={{ fontSize: 18 }}>
-        {title}
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+      <View style={[styles.emptyIcon, { backgroundColor: theme.tintSoft }]}>
+        <ThemedText style={{ fontSize: 34, lineHeight: 44 }}>{icon}</ThemedText>
+      </View>
+      <ThemedText type="heading">{title}</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', maxWidth: 300 }}>
         {body}
       </ThemedText>
-      {action}
+      {action && <View style={{ marginTop: Spacing.two, alignSelf: 'stretch' }}>{action}</View>}
     </View>
   );
 }
 
 export function Loading() {
+  const theme = useTheme();
   return (
     <View style={styles.empty}>
-      <ActivityIndicator />
+      <ActivityIndicator color={theme.tint} />
     </View>
   );
 }
 
 export const styles = StyleSheet.create({
   screen: {
-    padding: Spacing.three,
+    padding: 20,
     paddingBottom: BottomTabInset + Spacing.five,
     gap: Spacing.three,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: Radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.three,
     gap: Spacing.two,
   },
@@ -360,66 +390,67 @@ export const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderRadius: Radius.md,
+    minHeight: 52,
     paddingHorizontal: Spacing.four,
   },
+  headerPlus: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   input: {
-    borderRadius: 12,
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.three,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
   },
   chip: {
-    borderRadius: 999,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   segmented: {
     flexDirection: 'row',
-    borderRadius: 12,
-    padding: 3,
+    borderRadius: Radius.md,
+    padding: 4,
   },
   segment: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: Radius.sm,
   },
   track: {
     height: 8,
-    borderRadius: 4,
+    borderRadius: Radius.pill,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: Radius.pill,
   },
   pill: {
-    borderWidth: 1.5,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     paddingHorizontal: 10,
-    paddingVertical: 2,
+    paddingVertical: 3,
     minWidth: 54,
     alignItems: 'center',
   },
   iconTile: {
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pickCell: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  swatch: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 3,
   },
   sectionTitle: {
     flexDirection: 'row',
@@ -430,7 +461,15 @@ export const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     gap: Spacing.two,
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.five,
     paddingHorizontal: Spacing.four,
+  },
+  emptyIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.one,
   },
 });

@@ -72,6 +72,16 @@ export async function setItemStatus(item: ProjectItem, status: ItemStatus) {
   if (error) throw error;
 }
 
+/** Put a step on a day of the week (or take it off with null) and pick who does it. */
+export async function planItem(item: ProjectItem, changes: Partial<Pick<ProjectItem, 'planned_date' | 'assignee_id'>>) {
+  queryClient.setQueriesData<ProjectItem[]>({ queryKey: ['project_items', item.household_id] }, (old) =>
+    old?.map((i) => (i.id === item.id ? { ...i, ...changes } : i)),
+  );
+  const { error } = await supabase.from('project_items').update(changes).eq('id', item.id);
+  await queryClient.invalidateQueries({ queryKey: ['project_items'] });
+  if (error) throw error;
+}
+
 export async function deleteItem(id: string) {
   const { error } = await supabase.from('project_items').delete().eq('id', id);
   if (error) throw error;

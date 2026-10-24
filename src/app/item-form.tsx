@@ -1,11 +1,13 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { deleteItem, saveItem, useProjectItems, useProjects } from '@/api/projects';
 import { Button, Chip, ChipGroup, DateField, Field, isValidDay, Label, Loading, Screen, styles } from '@/components/ui';
 import { ITEM_STATUS } from '@/lib/projects';
 import type { ItemStatus, Project, ProjectItem } from '@/lib/types';
+import { confirmAsync, showAlert } from '@/lib/dialogs';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function ItemForm() {
@@ -50,23 +52,20 @@ function ItemFormBody({ existing, project }: { existing?: ProjectItem; project: 
       });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      showAlert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };
 
-  const remove = () =>
-    Alert.alert('Delete step?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteItem(existing!.id);
-          router.back();
-        },
-      },
-    ]);
+  const remove = async () => {
+    if (!(await confirmAsync('Delete step?', `"${existing!.title}" will be removed.`))) return;
+    try {
+      await deleteItem(existing!.id);
+      router.back();
+    } catch (e) {
+      showAlert('Could not delete', errorMessage(e));
+    }
+  };
 
   return (
     <>

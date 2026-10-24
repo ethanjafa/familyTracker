@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9BE8BF"/>
+      <stop offset="1" stop-color="#34B97A"/>
+    </linearGradient>
+  </defs><rect width="1024" height="1024" fill="url(#bg)"/><g transform="translate(40.95999999999998 40.95999999999998) scale(0.92)"><g transform="translate(0 -24)"><path d="M 461.6 505.3 L 613.0 790.0" stroke="#FFFFFF" stroke-width="20.0" stroke-linecap="round" fill="none"/><rect x="594.0" y="752.0" width="38" height="86" rx="19" fill="#FFFFFF" transform="rotate(-28.0 613.0 790.0)"/><path d="M 470.0 606.0 L 451.6 475.3" stroke="#FFFFFF" stroke-width="70.0" stroke-linecap="round" fill="none"/><circle cx="440.8" cy="398.0" r="46" fill="#FFFFFF"/><path d="M 582.0 606.0 L 572.4 537.7" stroke="#FFFFFF" stroke-width="50.0" stroke-linecap="round" fill="none"/><circle cx="564.6" cy="482.2" r="34" fill="#FFFFFF"/><path d="M 681.6 505.3 L 833.0 790.0" stroke="#FFFFFF" stroke-width="20.0" stroke-linecap="round" fill="none"/><rect x="814.0" y="752.0" width="38" height="86" rx="19" fill="#FFFFFF" transform="rotate(-28.0 833.0 790.0)"/><path d="M 690.0 606.0 L 671.6 475.3" stroke="#FFFFFF" stroke-width="70.0" stroke-linecap="round" fill="none"/><circle cx="660.8" cy="398.0" r="46" fill="#FFFFFF"/>
+    <mask id="eye-m"><rect width="1024" height="1024" fill="#fff"/><circle cx="300" cy="410" r="13" fill="#000"/></mask>
+    <g mask="url(#eye-m)">
+      <path d="M 246 650 C 204 566 208 474 270 428" stroke="#FFFFFF" stroke-width="58" stroke-linecap="round" fill="none"/>
+      <path d="M 340 414 C 344 374 310 356 276 372 L 180 418 L 286 444 C 318 448 338 440 340 414 Z" fill="#FFFFFF"/>
+      <path d="M 310 376 C 328 342 352 322 382 314 C 372 342 360 366 348 392 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"/>
+    </g>
+    <path d="M 784 634 C 842 604 862 548 840 496" stroke="#FFFFFF" stroke-width="46" stroke-linecap="round" fill="none"/>
+    <path d="M 214 600 H 812 C 794 690 676 736 512 736 C 352 736 234 692 214 600 Z" fill="#FFFFFF"/><path d="M 470.0 606.0 L 451.6 475.3" stroke="#FFFFFF" stroke-width="70.0" stroke-linecap="round" fill="none"/><circle cx="440.8" cy="398.0" r="46" fill="#FFFFFF"/><path d="M 582.0 606.0 L 572.4 537.7" stroke="#FFFFFF" stroke-width="50.0" stroke-linecap="round" fill="none"/><circle cx="564.6" cy="482.2" r="34" fill="#FFFFFF"/><path d="M 690.0 606.0 L 671.6 475.3" stroke="#FFFFFF" stroke-width="70.0" stroke-linecap="round" fill="none"/><circle cx="660.8" cy="398.0" r="46" fill="#FFFFFF"/></g></g></svg>
