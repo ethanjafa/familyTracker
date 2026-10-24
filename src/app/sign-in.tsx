@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,10 +27,10 @@ export default function SignInScreen() {
     <ThemedView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.hero}>
-          <ThemedText style={{ fontSize: 64, lineHeight: 80 }}>🏡</ThemedText>
-          <ThemedText type="subtitle">Family Tracker</ThemedText>
+          <Image source={require('@/assets/images/icon.png')} style={styles.logo} />
+          <ThemedText type="subtitle">Dragon Boat</ThemedText>
           <ThemedText themeColor="textSecondary" style={{ textAlign: 'center' }}>
-            Routines, projects and scorecards for you and your family, in sync.
+            Plan, sync and track routines and projects for your family
           </ThemedText>
         </View>
         <View style={{ gap: Spacing.two }}>
@@ -44,4 +45,5 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four, justifyContent: 'space-between' },
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.three },
+  logo: { width: 128, height: 128, borderRadius: 28 },
 });

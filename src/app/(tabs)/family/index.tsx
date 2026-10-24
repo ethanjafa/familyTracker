@@ -21,7 +21,7 @@ export default function FamilyScreen() {
     try {
       const code = await createInvite(household.id);
       await Share.share({
-        message: `Join "${household.name}" on Family Tracker: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
+        message: `Join "${household.name}" on Dragon Boat: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
       });
     } catch (e) {
       Alert.alert('Could not create invite', e instanceof Error ? e.message : String(e));

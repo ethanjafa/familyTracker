@@ -1,4 +1,6 @@
-# Family Tracker
+# Dragon Boat: Family in Sync
+
+<img src="assets/brand/logo-preview.png" width="128" alt="Dragon Boat logo">
 
 Routines, projects and scorecards for the whole family, built with Expo (React Native) and Supabase.
 

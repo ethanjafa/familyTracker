@@ -1,18 +1,19 @@
 {
   "expo": {
-    "name": "Family Tracker",
-    "slug": "Tracker",
+    "name": "Dragon Boat",
+    "slug": "dragon-boat",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tracker",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.ehsanjafarzadeh.dragonboat"
     },
     "android": {
+      "package": "com.ehsanjafarzadeh.dragonboat",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#5BBDF9",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,9 +29,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#5BBDF9",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 220
         }
       ],
       "expo-sqlite"
