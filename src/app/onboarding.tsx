@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +9,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Button, Card, Field, Segmented } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { signOut } from '@/lib/auth';
+
+import { errorMessage } from '@/lib/errors';
 
 export default function OnboardingScreen() {
   const [mode, setMode] = useState<'create' | 'join'>('create');
@@ -21,7 +24,7 @@ export default function OnboardingScreen() {
       if (mode === 'create') await createHousehold(name.trim() || 'Our family');
       else await joinHousehold(code);
     } catch (e) {
-      Alert.alert('Something went wrong', e instanceof Error ? e.message : String(e));
+      Alert.alert('Something went wrong', errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -34,7 +37,8 @@ export default function OnboardingScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, padding: Spacing.four, gap: Spacing.four, justifyContent: 'center' }}>
           <View style={{ gap: Spacing.two }}>
-            <ThemedText type="subtitle">Set up your family</ThemedText>
+            <Image source={require('@/assets/images/logo-mark.png')} style={{ width: 72, height: 72, marginBottom: Spacing.two }} />
+            <ThemedText type="title">Set up your family</ThemedText>
             <ThemedText themeColor="textSecondary">
               Create a household and invite your partner, or join one with an invite code.
             </ThemedText>

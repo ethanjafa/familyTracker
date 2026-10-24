@@ -33,7 +33,7 @@ export default function ProjectsScreen() {
     return (
       <Card key={p.id} onPress={() => router.push(`/projects/${p.id}`)}>
         <View style={styles.row}>
-          <IconTile icon={p.icon} color={p.color} />
+          <IconTile icon={p.icon} />
           <View style={{ flex: 1 }}>
             <ThemedText type="smallBold" style={{ fontSize: 17 }}>
               {p.name}
@@ -46,7 +46,7 @@ export default function ProjectsScreen() {
           </View>
           <ThemedText type="smallBold">{s.percent}%</ThemedText>
         </View>
-        <ProgressBar value={s.percent} color={p.color} />
+        <ProgressBar value={s.percent} color={theme.tint} />
         {s.next && p.status === 'active' && (
           <ThemedText type="small">
             <ThemedText type="smallBold">Next: </ThemedText>

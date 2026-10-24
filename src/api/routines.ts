@@ -88,6 +88,29 @@ export async function saveRoutine(
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
+type NewRoutine = Pick<Routine, 'name' | 'schedule' | 'time_of_day' | 'weight'>;
+
+/** Add several routines to a category at once (e.g. from suggestions). */
+export async function addRoutines(householdId: string, categoryId: string, routines: NewRoutine[]) {
+  if (!routines.length) return;
+  const { error } = await supabase
+    .from('routines')
+    .insert(routines.map((r) => ({ ...r, household_id: householdId, category_id: categoryId })));
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['routines'] });
+}
+
+/** Create a category together with its first routines. */
+export async function addCategoryWithRoutines(
+  category: Pick<RoutineCategory, 'household_id' | 'name' | 'icon' | 'visibility'>,
+  routines: NewRoutine[],
+) {
+  const { data, error } = await supabase.from('routine_categories').insert(category).select('id').single();
+  if (error) throw error;
+  await addRoutines(category.household_id, data.id, routines);
+  await queryClient.invalidateQueries({ queryKey: ['routine_categories'] });
+}
+
 /** Archiving keeps history in old scorecards; the routine just stops appearing. */
 export async function archiveRoutine(id: string) {
   const { error } = await supabase

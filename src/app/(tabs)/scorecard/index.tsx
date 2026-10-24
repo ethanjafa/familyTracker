@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Card, Chip, Loading, ProgressBar, Screen, ScorePill, SectionTitle, Segmented, styles, useBandColor } from '@/components/ui';
+import { colorFor } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { monthStart, today, weekStart } from '@/lib/dates';
@@ -223,7 +224,7 @@ export default function ScorecardScreen() {
                         {value} check-ins · {share}%
                       </ThemedText>
                     </View>
-                    <ProgressBar value={share} color={m.profile.color} />
+                    <ProgressBar value={share} color={colorFor(m.user_id)} />
                   </View>
                 );
               })}
@@ -246,7 +247,7 @@ export default function ScorecardScreen() {
                     </ThemedText>
                     <ThemedText type="smallBold">{p.percent}%</ThemedText>
                   </View>
-                  <ProgressBar value={p.percent} color={scopedProjects[i].color} />
+                  <ProgressBar value={p.percent} color={theme.tint} />
                 </View>
               ))}
             </Card>

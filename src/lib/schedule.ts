@@ -26,6 +26,29 @@ export function describeSchedule(s: Schedule): string {
 /** Fixed schedules are due on specific days; flexible ones need N completions per week/month. */
 export const isFlexible = (s: Schedule) => s.type === 'weekly' || s.type === 'monthly';
 
+/** Weekdays (0 = Sunday) a schedule can fall on, or null when it isn't tied to weekdays. */
+export function scheduleWeekdays(s: Schedule): number[] | null {
+  if (s.type === 'daily') return [0, 1, 2, 3, 4, 5, 6];
+  if (s.type === 'weekdays') return s.days;
+  return null;
+}
+
+/** Whether a routine takes turns: a different person on different weekdays. */
+export const hasDayAssignees = (r: Routine) =>
+  scheduleWeekdays(r.schedule) !== null && Object.values(r.day_assignees ?? {}).some(Boolean);
+
+/** Who is responsible for a routine on a given day. */
+export function assigneesOn(routine: Routine, day: Date): string[] {
+  if (!hasDayAssignees(routine)) return routine.assignee_ids;
+  const id = routine.day_assignees?.[String(getDay(day))];
+  return id ? [id] : [];
+}
+
+/** The weekdays a person is on duty for a turn-taking routine. */
+export function daysAssignedTo(routine: Routine, userId: string): number[] {
+  return (scheduleWeekdays(routine.schedule) ?? []).filter((d) => routine.day_assignees?.[String(d)] === userId);
+}
+
 export function isFixedDueOn(routine: Routine, day: Date): boolean {
   const start = fromDay(routine.start_date);
   if (isBefore(day, start)) return false;

@@ -49,7 +49,7 @@ export default function ProjectScreen() {
               {s.done}/{s.total} steps
             </ThemedText>
           </View>
-          <ProgressBar value={s.percent} color={project.color} />
+          <ProgressBar value={s.percent} color={theme.tint} />
           {project.description ? <ThemedText type="small">{project.description}</ThemedText> : null}
           <ThemedText type="small" themeColor="textSecondary">
             {[

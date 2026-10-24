@@ -4,8 +4,9 @@ import { Alert, Share, View } from 'react-native';
 
 import { createInvite, renameHousehold, updateProfile } from '@/api/household';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, ColorPicker, Field, Label, Screen, SectionTitle, styles } from '@/components/ui';
+import { Avatar, Button, Card, Field, Screen, SectionTitle, styles } from '@/components/ui';
 import { signOut } from '@/lib/auth';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function FamilyScreen() {
@@ -13,7 +14,6 @@ export default function FamilyScreen() {
   const me = memberById.get(userId);
   const [householdName, setHouseholdName] = useState(household.name);
   const [displayName, setDisplayName] = useState(me?.profile.display_name ?? '');
-  const [color, setColor] = useState(me?.profile.color ?? '#208AEF');
   const [busy, setBusy] = useState<'invite' | 'save' | null>(null);
 
   const invite = async () => {
@@ -24,7 +24,7 @@ export default function FamilyScreen() {
         message: `Join "${household.name}" on Dragon Boat: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
       });
     } catch (e) {
-      Alert.alert('Could not create invite', e instanceof Error ? e.message : String(e));
+      Alert.alert('Could not create invite', errorMessage(e));
     } finally {
       setBusy(null);
     }
@@ -33,13 +33,13 @@ export default function FamilyScreen() {
   const save = async () => {
     setBusy('save');
     try {
-      await updateProfile(userId, { display_name: displayName.trim(), color });
+      await updateProfile(userId, { display_name: displayName.trim() });
       if (householdName.trim() && householdName.trim() !== household.name) {
         await renameHousehold(household.id, householdName.trim());
       }
       Alert.alert('Saved');
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      Alert.alert('Could not save', errorMessage(e));
     } finally {
       setBusy(null);
     }
@@ -72,8 +72,6 @@ export default function FamilyScreen() {
         <Card style={{ gap: 16 }}>
           <Field label="Household name" value={householdName} onChangeText={setHouseholdName} />
           <Field label="Your name" value={displayName} onChangeText={setDisplayName} />
-          <Label>Your color</Label>
-          <ColorPicker value={color} onChange={setColor} />
           <Button title="Save" onPress={save} loading={busy === 'save'} disabled={!displayName.trim()} />
         </Card>
 

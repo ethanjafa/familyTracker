@@ -4,8 +4,9 @@ import { Alert } from 'react-native';
 
 import { deleteProject, saveProject, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
-import { Button, ChipGroup, ColorPicker, DateField, Field, IconPicker, isValidDay, Label, Loading, Screen, Segmented } from '@/components/ui';
+import { Button, ChipGroup, DateField, Field, IconPicker, isValidDay, Label, Loading, Screen, Segmented } from '@/components/ui';
 import type { Project, ProjectStatus, Visibility } from '@/lib/types';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function ProjectForm() {
@@ -21,7 +22,6 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
   const [name, setName] = useState(existing?.name ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
   const [icon, setIcon] = useState(existing?.icon ?? '🛠️');
-  const [color, setColor] = useState(existing?.color ?? '#E07A1F');
   const [visibility, setVisibility] = useState<Visibility>(existing?.visibility ?? defaultVisibility);
   const [status, setStatus] = useState<ProjectStatus>(existing?.status ?? 'active');
   const [targetDate, setTargetDate] = useState(existing?.target_date ?? '');
@@ -40,7 +40,6 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
         name: name.trim(),
         description: description.trim() || null,
         icon,
-        color,
         visibility,
         status,
         target_date: targetDate || null,
@@ -48,7 +47,7 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
       });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      Alert.alert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };
@@ -106,8 +105,6 @@ function ProjectFormBody({ existing, defaultVisibility }: { existing?: Project; 
         <Field label="Budget" value={budget} onChangeText={setBudget} keyboardType="decimal-pad" placeholder="optional" />
         <Label>Icon</Label>
         <IconPicker value={icon} onChange={setIcon} />
-        <Label>Color</Label>
-        <ColorPicker value={color} onChange={setColor} />
         <Button title="Save" onPress={save} loading={busy} disabled={!valid} />
         {existing && <Button title="Delete project" variant="danger" onPress={remove} />}
       </Screen>

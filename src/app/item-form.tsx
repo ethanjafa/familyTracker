@@ -6,6 +6,7 @@ import { deleteItem, saveItem, useProjectItems, useProjects } from '@/api/projec
 import { Button, Chip, ChipGroup, DateField, Field, isValidDay, Label, Loading, Screen, styles } from '@/components/ui';
 import { ITEM_STATUS } from '@/lib/projects';
 import type { ItemStatus, Project, ProjectItem } from '@/lib/types';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function ItemForm() {
@@ -50,7 +51,7 @@ function ItemFormBody({ existing, project }: { existing?: ProjectItem; project: 
       });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      Alert.alert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };

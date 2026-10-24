@@ -1,5 +1,6 @@
 import { NativeTabs } from 'expo-router/native-tabs';
 
+import { FontFamilies } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function TabLayout() {
@@ -7,9 +8,14 @@ export default function TabLayout() {
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      backgroundColor={colors.card}
+      tintColor={colors.tint}
+      indicatorColor={colors.tintSoft}
+      iconColor={{ default: colors.textSecondary, selected: colors.tint }}
+      labelStyle={{
+        default: { color: colors.textSecondary, fontFamily: FontFamilies[600] },
+        selected: { color: colors.tint, fontFamily: FontFamilies[700] },
+      }}>
       <NativeTabs.Trigger name="(today)">
         <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="checkmark.circle" md="check_circle" />

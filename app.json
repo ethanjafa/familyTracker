@@ -13,7 +13,7 @@
     "android": {
       "package": "com.ehsanjafarzadeh.dragonboat",
       "adaptiveIcon": {
-        "backgroundColor": "#5BBDF9",
+        "backgroundColor": "#5CCB94",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -29,7 +29,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#5BBDF9",
+          "backgroundColor": "#5CCB94",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 220
         }

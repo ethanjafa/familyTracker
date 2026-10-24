@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDay } from '@/lib/dates';
-import { completedBetween, flexibleTarget, isFlexible, periodStart } from '@/lib/schedule';
+import { assigneesOn, completedBetween, flexibleTarget, isFlexible, periodStart } from '@/lib/schedule';
 import type { LogStatus, Member, Routine, RoutineCategory, RoutineLog } from '@/lib/types';
 
 const MARK: Record<LogStatus, string> = { done: '✓', partial: '½', skipped: '–' };
@@ -18,10 +18,12 @@ type Props = {
   streak: number;
   userId: string;
   memberById: Map<string, Member>;
+  /** Preview only (e.g. tomorrow): shows the routine without letting anyone check it off. */
+  readOnly?: boolean;
 };
 
 /** A checkable routine. Tap toggles done; long-press offers partial / skip. */
-export function RoutineRow({ routine, category, day, logs, streak, userId, memberById }: Props) {
+export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false }: Props) {
   const theme = useTheme();
   const log = logs?.get(day);
   const status = log?.status;
@@ -44,15 +46,21 @@ export function RoutineRow({ routine, category, day, logs, streak, userId, membe
   const loggedBy = log && log.user_id !== userId ? memberById.get(log.user_id) : undefined;
   if (loggedBy) details.push(`by ${loggedBy.profile.display_name}`);
 
-  const checkColor = status === 'done' ? theme.success : status === 'partial' ? theme.warning : theme.textSecondary;
+  const onDuty = assigneesOn(routine, fromDay(day));
+  const checkColor =status === 'done' ? theme.success : status === 'partial' ? theme.warning : theme.textSecondary;
 
   return (
-    <Pressable onPress={toggle} onLongPress={more} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1, paddingVertical: 6 }]}>
+    <Pressable
+      onPress={toggle}
+      onLongPress={more}
+      disabled={readOnly}
+      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1, paddingVertical: 10 }]}>
       <View
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: 15,
+          opacity: readOnly ? 0.4 : 1,
+          width: 28,
+          height: 28,
+          borderRadius: 9,
           borderWidth: 2,
           borderColor: status ? checkColor : theme.backgroundSelected,
           backgroundColor: status && status !== 'skipped' ? checkColor : 'transparent',
@@ -60,7 +68,9 @@ export function RoutineRow({ routine, category, day, logs, streak, userId, membe
           justifyContent: 'center',
         }}>
         {status && (
-          <ThemedText style={{ color: status === 'skipped' ? checkColor : '#fff', fontWeight: 800 }}>{MARK[status]}</ThemedText>
+          <ThemedText style={{ color: status === 'skipped' ? checkColor : '#fff', fontWeight: 800, fontSize: 15, lineHeight: 20 }}>
+            {MARK[status]}
+          </ThemedText>
         )}
       </View>
       <View style={{ flex: 1 }}>
@@ -72,16 +82,22 @@ export function RoutineRow({ routine, category, day, logs, streak, userId, membe
           {details.join(' · ')}
         </ThemedText>
       </View>
-      {routine.assignee_ids.length > 0 && (
+      {onDuty.length > 0 && (
         <View style={{ flexDirection: 'row' }}>
-          {routine.assignee_ids.slice(0, 3).map((id) => (
+          {onDuty.slice(0, 3).map((id) => (
             <View key={id} style={{ marginLeft: -6 }}>
               <Avatar profile={memberById.get(id)?.profile} size={22} />
             </View>
           ))}
         </View>
       )}
-      {streak >= 2 && <ThemedText type="smallBold">🔥{streak}</ThemedText>}
+      {streak >= 2 && (
+        <View style={{ backgroundColor: theme.tintSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <ThemedText type="smallBold" style={{ color: theme.tint }}>
+            🔥 {streak}
+          </ThemedText>
+        </View>
+      )}
     </Pressable>
   );
 }

@@ -4,8 +4,9 @@ import { Alert } from 'react-native';
 
 import { deleteCategory, saveCategory, useCategories } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
-import { Button, ColorPicker, Field, IconPicker, Label, Loading, Screen, Segmented } from '@/components/ui';
+import { Button, Field, IconPicker, Label, Loading, Screen, Segmented } from '@/components/ui';
 import type { RoutineCategory, Visibility } from '@/lib/types';
+import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function CategoryForm() {
@@ -20,17 +21,16 @@ function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineC
   const { household } = useHousehold();
   const [name, setName] = useState(existing?.name ?? '');
   const [icon, setIcon] = useState(existing?.icon ?? '🏠');
-  const [color, setColor] = useState(existing?.color ?? '#208AEF');
   const [visibility, setVisibility] = useState<Visibility>(existing?.visibility ?? defaultVisibility);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon, color, visibility });
+      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon, visibility });
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      Alert.alert('Could not save', errorMessage(e));
       setBusy(false);
     }
   };
@@ -73,8 +73,6 @@ function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineC
         )}
         <Label>Icon</Label>
         <IconPicker value={icon} onChange={setIcon} />
-        <Label>Color</Label>
-        <ColorPicker value={color} onChange={setColor} />
         <Button title="Save" onPress={save} loading={busy} disabled={!name.trim()} />
         {existing && <Button title="Delete category" variant="danger" onPress={remove} />}
       </Screen>

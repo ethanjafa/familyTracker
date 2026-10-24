@@ -4,7 +4,7 @@
 
 Routines, projects and scorecards for the whole family, built with Expo (React Native) and Supabase.
 
-- **Routines**: category → routine (e.g. *House cleanliness → Wash dishes*), with flexible schedules, a time of day, importance, and who's responsible.
+- **Routines**: category → routine (e.g. *House cleanliness → Wash dishes*), with flexible schedules, a time of day, importance, and who's responsible. Family members can take turns by weekday (e.g. *Pick up baby*: Mon → one parent, Tue → the other), and the app suggests common categories and routines.
 - **Projects**: project → steps (e.g. *Renovation → Laminate change*), with status, owner, due date, cost and budget.
 - **Personal vs family**: personal items are visible only to you (enforced by Row Level Security); family items are shared with everyone in the household.
 - **Scorecards**: weekly and monthly scores per person or for the family, an 8-week trend, per-category breakdown, streaks, who did what, and rule-based feedback.
@@ -13,7 +13,9 @@ Routines, projects and scorecards for the whole family, built with Expo (React N
 ## 1. Create the Supabase backend (one time)
 
 1. Create a free project at <https://supabase.com>.
-2. Open **SQL Editor**, paste [supabase/migrations/20261023000000_init.sql](supabase/migrations/20261023000000_init.sql), and run it.
+2. Open **SQL Editor** and run each file in [supabase/migrations/](supabase/migrations/), oldest first:
+   - [20261023000000_init.sql](supabase/migrations/20261023000000_init.sql): tables and security policies
+   - [20261024000000_day_assignees.sql](supabase/migrations/20261024000000_day_assignees.sql): taking turns by day
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
    - `tracker://**` (installed builds)

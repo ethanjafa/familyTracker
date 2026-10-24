@@ -47,6 +47,8 @@ export type Routine = {
   weight: number;
   time_of_day: TimeOfDay;
   assignee_ids: string[];
+  /** Weekday ("0" = Sunday … "6" = Saturday) → user responsible that day. Empty = assignee_ids every day. */
+  day_assignees?: Partial<Record<string, string>>;
   start_date: string;
   archived_at: string | null;
 };

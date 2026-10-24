@@ -14,7 +14,9 @@ import {
 import { fromDay, toDay } from '@/lib/dates';
 import {
   completedBetween,
+  daysAssignedTo,
   flexibleTarget,
+  hasDayAssignees,
   isFixedDueOn,
   isFlexible,
   logValue,
@@ -129,16 +131,24 @@ export function streak(routine: Routine, logs: LogIndex, now = new Date()): numb
   return count;
 }
 
-/** Routines that count towards a person's own score: their personal ones plus family ones assigned to them. */
+/**
+ * Routines that count towards a person's own score: their personal ones plus family ones assigned to them.
+ * Turn-taking routines are narrowed to that person's weekdays, so they're only scored on their own days.
+ */
 export function routinesFor(
   userId: string,
   routines: Routine[],
   categories: Map<string, RoutineCategory>,
 ): Routine[] {
-  return routines.filter((r) => {
+  return routines.flatMap((r): Routine[] => {
     const c = categories.get(r.category_id);
-    if (!c) return false;
-    return c.visibility === 'personal' ? c.owner_id === userId : r.assignee_ids.includes(userId);
+    if (!c) return [];
+    if (c.visibility === 'personal') return c.owner_id === userId ? [r] : [];
+    if (hasDayAssignees(r)) {
+      const days = daysAssignedTo(r, userId);
+      return days.length ? [{ ...r, schedule: { type: 'weekdays', days } }] : [];
+    }
+    return r.assignee_ids.includes(userId) ? [r] : [];
   });
 }
 
