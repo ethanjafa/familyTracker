@@ -14,7 +14,8 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     storage: hasStorage ? localStorage : undefined,
     autoRefreshToken: hasStorage,
     persistSession: hasStorage,
-    detectSessionInUrl: false,
+    // Web sign-in redirects back with ?code=…; native exchanges the code itself in auth.ts.
+    detectSessionInUrl: Platform.OS === 'web' && hasStorage,
     flowType: 'pkce',
   },
 });

@@ -83,6 +83,10 @@ const variants = {
   favicon: { svg: svg(`<rect width="1024" height="1024" rx="220" fill="url(#bg)"/>${fit(1.02, mark())}`), size: 48 },
   // In-app logo: the mark in brand green on a transparent background.
   'logo-mark': { svg: svg(fit(1.02, mark('#2FAE72'))), size: 512 },
+  // Web app icons (copied to public/): iPhone home screen and the web manifest.
+  'apple-touch-icon': { svg: svg(`${bg}${fit(0.92, mark())}`), size: 180 },
+  'icon-192': { svg: svg(`${bg}${fit(0.92, mark())}`), size: 192 },
+  'icon-512': { svg: svg(`${bg}${fit(0.92, mark())}`), size: 512 },
   // Preview of the final look with an iOS-style rounded mask.
   preview: { svg: svg(`<rect width="1024" height="1024" rx="230" fill="url(#bg)"/>${fit(0.92, mark())}`), size: 512 },
 };

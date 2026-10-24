@@ -28,6 +28,14 @@ function getRedirectUrl() {
  * can replace this once the app ships as a development/store build.
  */
 export async function signInWith(provider: Provider) {
+  if (Platform.OS === 'web') {
+    // A full-page redirect instead of a popup: popups are unreliable in iPhone home-screen web apps.
+    // Supabase returns to this site with ?code=…, which the client exchanges on load (detectSessionInUrl).
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+    if (error) throw error;
+    return;
+  }
+
   const redirectTo = getRedirectUrl();
   // Must be allow-listed in Supabase → Authentication → URL Configuration → Redirect URLs.
   if (__DEV__) console.log('[auth] redirectTo:', redirectTo);
