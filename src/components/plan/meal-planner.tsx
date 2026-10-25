@@ -17,12 +17,16 @@ import { MEAL_IDEAS } from '@/lib/meal-ideas';
 import type { Meal, MealPlan, MealSlot } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
+const SLOTS: { slot: MealSlot; icon: string; label: string }[] = [
+  { slot: 'lunch', icon: '🥪', label: 'Lunch' },
+  { slot: 'dinner', icon: '🍽️', label: 'Dinner' },
+];
+
 /** Spinning is an event, not rendering, so the randomness lives outside the component. */
 const pickRandom = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)];
 
-/** Meals: a lunch or dinner per day, filled from the meal backlog. */
-export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
-  const label = slot === 'lunch' ? 'lunch' : 'dinner';
+/** Meals: lunch and dinner for each day, filled from one shared meal backlog. */
+export function MealPlanner({ days }: { days: Date[] }) {
   const theme = useTheme();
   const { household, memberById } = useHousehold();
   const meals = useMeals();
@@ -34,10 +38,9 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
 
   const mealById = new Map((meals.data ?? []).map((m) => [m.id, m]));
   const keys = days.map(toDay);
-  const planByDay = new Map(
-    (plans.data ?? []).filter((p) => p.slot === slot && keys.includes(p.plan_date)).map((p) => [p.plan_date, p]),
-  );
-  const plannedThisWeek = new Set([...planByDay.values()].map((p) => p.meal_id).filter(Boolean));
+  const weekPlans = (plans.data ?? []).filter((p) => keys.includes(p.plan_date));
+  const planAt = (day: string, slot: MealSlot) => weekPlans.find((p) => p.plan_date === day && p.slot === slot);
+  const plannedThisWeek = new Set(weekPlans.map((p) => p.meal_id).filter(Boolean));
   const lastHad = new Map<string, string>();
   for (const p of plans.data ?? []) {
     if (p.meal_id && p.plan_date < keys[0] && (lastHad.get(p.meal_id) ?? '') < p.plan_date) lastHad.set(p.meal_id, p.plan_date);
@@ -52,12 +55,12 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
     setTimeout(() => setNote((n) => (n === message ? null : n)), 3500);
   };
 
-  const place = async (meal: Meal, day: string) => {
+  const place = async (meal: Meal, day: string, slot: MealSlot) => {
     try {
-      const added = await planMeal(meal, day, slot, planByDay.get(day)?.cook_id ?? null);
+      const added = await planMeal(meal, day, slot, planAt(day, slot)?.cook_id ?? null);
       setOpen(null);
       flash(
-        `${meal.icon} ${meal.name} for ${format(fromDay(day), 'EEEE')} ${label}` +
+        `${meal.icon} ${meal.name} for ${format(fromDay(day), 'EEEE')} ${slot}` +
           (added ? ` · 🛒 ${added} ingredient${added === 1 ? '' : 's'} added to groceries` : ''),
       );
     } catch (e) {
@@ -65,12 +68,16 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
     }
   };
 
+  // Spin fills the next free dinner, then the next free lunch, from today on.
   const today = startOfDay(new Date());
-  const emptyDays = keys.filter((k) => !planByDay.has(k) && !isBefore(fromDay(k), today));
+  const ahead = keys.filter((k) => !isBefore(fromDay(k), today));
   const spin = () => {
     if (!backlog.length) return showAlert('Nothing to spin', 'Add a few meals to the backlog first.');
-    if (!emptyDays.length) return showAlert('Week is full', `Every ${label} this week is already planned.`);
-    place(pickRandom(backlog), emptyDays[0]);
+    const free =
+      ahead.map((k) => ({ day: k, slot: 'dinner' as const })).find((s) => !planAt(s.day, s.slot)?.meal_id) ??
+      ahead.map((k) => ({ day: k, slot: 'lunch' as const })).find((s) => !planAt(s.day, s.slot)?.meal_id);
+    if (!free) return showAlert('Week is full', 'Every lunch and dinner this week is already planned.');
+    place(pickRandom(backlog), free.day, free.slot);
   };
 
   const addIdea = (idea: (typeof MEAL_IDEAS)[number]) =>
@@ -79,55 +86,51 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
 
   return (
     <>
-      <SectionTitle>{slot === 'lunch' ? '🥪 Lunches' : '🍽️ Dinners'}</SectionTitle>
       <Card style={{ gap: 0, paddingVertical: 4 }}>
         {days.map((d, i) => {
           const key = keys[i];
-          const plan = planByDay.get(key);
-          const meal = plan?.meal_id ? mealById.get(plan.meal_id) : undefined;
-          const isOpen = open === `day:${key}`;
           const past = isBefore(d, today);
+          const openSlot = SLOTS.find((s) => open === `${s.slot}:${key}`);
           return (
-            <View key={key} style={[local.slot, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-              <Pressable
-                onPress={() => setOpen(isOpen ? null : `day:${key}`)}
-                style={({ pressed }) => [styles.row, { gap: 12, opacity: pressed ? 0.6 : past ? 0.55 : 1 }]}>
-                <ThemedText type="smallBold" style={{ width: 34 }} themeColor="textSecondary">
+            <View key={key} style={[local.day, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+              <View style={[styles.row, { alignItems: 'flex-start', gap: 12, opacity: past ? 0.55 : 1 }]}>
+                <ThemedText type="smallBold" style={{ width: 34, paddingTop: 4 }} themeColor="textSecondary">
                   {format(d, 'EEE')}
                 </ThemedText>
-                {meal ? (
-                  <>
-                    <ThemedText style={{ fontSize: 22, lineHeight: 28 }}>{meal.icon}</ThemedText>
-                    <ThemedText style={{ flex: 1, fontWeight: 600 }} numberOfLines={1}>
-                      {meal.name}
-                    </ThemedText>
-                  </>
-                ) : (
-                  <ThemedText type="small" themeColor="tint" style={{ flex: 1, fontWeight: 700 }}>
-                    ＋ Add {label}
-                  </ThemedText>
-                )}
-                {plan?.cook_id && <Avatar profile={memberById.get(plan.cook_id)?.profile} size={24} />}
-              </Pressable>
-              {isOpen && (
-                <Animated.View entering={FadeIn.duration(160)} style={{ gap: 8, paddingTop: 10 }}>
-                  {plan && meal ? (
-                    <PlannedMealEditor plan={plan} onRemove={() => setOpen(null)} />
-                  ) : backlog.length ? (
-                    <>
-                      <Label>Pick from the backlog</Label>
-                      <View style={styles.wrap}>
-                        {backlog.slice(0, 8).map((m) => (
-                          <Chip key={m.id} label={`${m.icon} ${m.name}`} selected={false} onPress={() => place(m, key)} />
-                        ))}
-                      </View>
-                    </>
-                  ) : (
-                    <ThemedText type="small" themeColor="textSecondary">
-                      Add meals to the backlog below first.
-                    </ThemedText>
-                  )}
-                </Animated.View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  {SLOTS.map((s) => {
+                    const plan = planAt(key, s.slot);
+                    const meal = plan?.meal_id ? mealById.get(plan.meal_id) : undefined;
+                    const id = `${s.slot}:${key}`;
+                    return (
+                      <Pressable
+                        key={s.slot}
+                        onPress={() => setOpen(open === id ? null : id)}
+                        style={({ pressed }) => [styles.row, local.slot, { opacity: pressed ? 0.6 : 1 }]}>
+                        <ThemedText style={{ width: 22 }}>{meal?.icon ?? s.icon}</ThemedText>
+                        {meal ? (
+                          <ThemedText style={{ flex: 1, fontWeight: 600 }} numberOfLines={1}>
+                            {meal.name}
+                          </ThemedText>
+                        ) : (
+                          <ThemedText type="small" themeColor="tint" style={{ flex: 1, fontWeight: 700 }}>
+                            ＋ {s.label}
+                          </ThemedText>
+                        )}
+                        {plan?.cook_id && <Avatar profile={memberById.get(plan.cook_id)?.profile} size={22} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              {openSlot && (
+                <SlotEditor
+                  slot={openSlot}
+                  plan={planAt(key, openSlot.slot)}
+                  backlog={backlog}
+                  onPick={(m) => place(m, key, openSlot.slot)}
+                  onDone={() => setOpen(null)}
+                />
               )}
             </View>
           );
@@ -142,10 +145,8 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
         </Animated.View>
       )}
 
-      <SectionTitle right={<HeaderButton title="＋ New" onPress={() => router.push('/meal-form')} />}>
-        📝 Meal backlog
-      </SectionTitle>
-      <Button title={`🎡 Spin for ${label}`} variant="secondary" onPress={spin} />
+      <SectionTitle right={<HeaderButton title="＋ New" onPress={() => router.push('/meal-form')} />}>📝 Meal backlog</SectionTitle>
+      <Button title="🎡 Spin for a meal" variant="secondary" onPress={spin} />
       {backlog.length > 0 && (
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           {backlog.map((m, i) => {
@@ -153,7 +154,7 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
             const last = lastHad.get(m.id);
             const weeks = last ? differenceInCalendarWeeks(days[0], fromDay(last), { weekStartsOn: 1 }) : null;
             return (
-              <View key={m.id} style={[local.slot, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+              <View key={m.id} style={[local.day, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
                 <View style={[styles.row, { gap: 12 }]}>
                   <Pressable
                     onPress={() => router.push({ pathname: '/meal-form', params: { id: m.id } })}
@@ -177,8 +178,15 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
                   </Pressable>
                 </View>
                 {isOpen && (
-                  <Animated.View entering={FadeIn.duration(160)} style={{ paddingTop: 10 }}>
-                    <DayChips days={days} value={null} onChange={(d) => d && place(m, d)} />
+                  <Animated.View entering={FadeIn.duration(160)} style={{ gap: 8, paddingTop: 10 }}>
+                    {SLOTS.map((s) => (
+                      <View key={s.slot} style={{ gap: 6 }}>
+                        <Label>
+                          {s.icon} {s.label}
+                        </Label>
+                        <DayChips days={days} value={null} onChange={(d) => d && place(m, d, s.slot)} />
+                      </View>
+                    ))}
                   </Animated.View>
                 )}
               </View>
@@ -202,26 +210,59 @@ export function MealPlanner({ days, slot }: { days: Date[]; slot: MealSlot }) {
   );
 }
 
-function PlannedMealEditor({ plan, onRemove }: { plan: MealPlan; onRemove: () => void }) {
+/** Under a day: pick its lunch or dinner from the backlog, or set the cook / send it back. */
+function SlotEditor({
+  slot,
+  plan,
+  backlog,
+  onPick,
+  onDone,
+}: {
+  slot: (typeof SLOTS)[number];
+  plan: MealPlan | undefined;
+  backlog: Meal[];
+  onPick: (meal: Meal) => void;
+  onDone: () => void;
+}) {
   const fail = (e: unknown) => showAlert('Could not update', errorMessage(e));
   return (
-    <>
-      <Label>Who&apos;s cooking</Label>
-      <PersonChips value={plan.cook_id} onChange={(id) => setCook(plan, id).catch(fail)} noneLabel="Not decided" />
-      <Pressable
-        onPress={() => unplanMeal(plan.id).then(onRemove, fail)}
-        hitSlop={8}
-        style={({ pressed }) => ({ alignSelf: 'flex-start', opacity: pressed ? 0.6 : 1 })}>
-        <ThemedText type="small" themeColor="textSecondary" style={{ fontWeight: 700 }}>
-          ✕ Back to the backlog
+    <Animated.View entering={FadeIn.duration(160)} style={{ gap: 8, paddingTop: 10 }}>
+      {plan?.meal_id ? (
+        <>
+          <Label>Who&apos;s making {slot.label.toLowerCase()}</Label>
+          <PersonChips value={plan.cook_id} onChange={(id) => setCook(plan, id).catch(fail)} noneLabel="Not decided" />
+          <Pressable
+            onPress={() => unplanMeal(plan.id).then(onDone, fail)}
+            hitSlop={8}
+            style={({ pressed }) => ({ alignSelf: 'flex-start', opacity: pressed ? 0.6 : 1 })}>
+            <ThemedText type="small" themeColor="textSecondary" style={{ fontWeight: 700 }}>
+              ✕ Back to the backlog
+            </ThemedText>
+          </Pressable>
+        </>
+      ) : backlog.length ? (
+        <>
+          <Label>
+            Pick {slot.label.toLowerCase()} from the backlog
+          </Label>
+          <View style={styles.wrap}>
+            {backlog.slice(0, 8).map((m) => (
+              <Chip key={m.id} label={`${m.icon} ${m.name}`} selected={false} onPress={() => onPick(m)} />
+            ))}
+          </View>
+        </>
+      ) : (
+        <ThemedText type="small" themeColor="textSecondary">
+          Add meals to the backlog below first.
         </ThemedText>
-      </Pressable>
-    </>
+      )}
+    </Animated.View>
   );
 }
 
 const local = StyleSheet.create({
-  slot: { paddingVertical: 10 },
+  day: { paddingVertical: 10 },
+  slot: { gap: 8, paddingVertical: 3 },
   note: { borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 10 },
   move: { borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
 });

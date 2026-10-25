@@ -14,7 +14,7 @@ import { errorMessage } from '@/lib/errors';
 
 const HIGHLIGHTS = [
   { icon: '🗓️', text: 'Daily routines for everyone at home' },
-  { icon: '🛠️', text: 'Projects broken into clear steps' },
+  { icon: '📝', text: 'Shared to-dos with owners and target dates' },
   { icon: '📈', text: 'Weekly scores to see how the family is doing' },
 ];
 

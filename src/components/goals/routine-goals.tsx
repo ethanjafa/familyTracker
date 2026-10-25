@@ -28,7 +28,6 @@ import { type RoutineTemplate, suggestedCategories, suggestedRoutines } from '@/
 import type { Routine, RoutineCategory, Visibility } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
-const TIME_LABEL = { morning: 'Morning', day: 'Day', evening: 'Evening', anytime: '' };
 
 /** Goals → Routines: categories with their routines, plus suggestions. */
 export function RoutineGoals({ visibility }: { visibility: Visibility }) {
@@ -228,7 +227,6 @@ function RoutineLine({ routine, logIndex }: { routine: Routine; logIndex: Return
   const people = turns ? [...new Set(Object.values(routine.day_assignees ?? {}))] : routine.assignee_ids;
   const details = [
     describeSchedule(routine.schedule),
-    TIME_LABEL[routine.time_of_day],
     turns ? 'Takes turns' : '',
     s >= 2 ? `🔥 ${s}` : '',
   ].filter(Boolean);

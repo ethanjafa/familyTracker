@@ -22,8 +22,7 @@ const daily: Schedule = { type: 'daily' };
 const days = (...d: number[]): Schedule => ({ type: 'weekdays', days: d });
 const weekdays = days(1, 2, 3, 4, 5);
 const perWeek = (times: number): Schedule => ({ type: 'weekly', times });
-const perMonth = (times: number): Schedule => ({ type: 'monthly', times });
-const every = (n: number): Schedule => ({ type: 'interval', every: n });
+const perTwoWeeks = (times: number): Schedule => ({ type: 'biweekly', times });
 
 const r = (name: string, schedule: Schedule, time_of_day: TimeOfDay = 'anytime', weight: 1 | 2 | 3 = 2): RoutineTemplate => ({
   name,
@@ -102,8 +101,8 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
       r('Feed the pets', daily, 'morning', 3),
       r('Walk the dog', daily, 'morning', 3),
       r('Evening walk', daily, 'evening'),
-      r('Clean the litter box', every(2)),
-      r('Grooming / vet check', perMonth(1), 'anytime', 1),
+      r('Clean the litter box', perWeek(3)),
+      r('Grooming / vet check', perTwoWeeks(1), 'anytime', 1),
     ],
   },
   {
@@ -113,7 +112,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
     visibility: 'family',
     keywords: ['garden', 'plant', 'yard', 'lawn', 'maintenance'],
     routines: [
-      r('Water the plants', every(3)),
+      r('Water the plants', perWeek(2)),
       r('Mow the lawn', perWeek(1)),
       r('Check the mail', daily, 'day', 1),
       r('Take bins to the curb', days(3), 'evening'),
@@ -127,7 +126,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
     keywords: ['money', 'finance', 'budget', 'bill', 'bank'],
     routines: [
       r('Review the budget', perWeek(1)),
-      r('Pay the bills', perMonth(1), 'anytime', 3),
+      r('Pay the bills', perTwoWeeks(1), 'anytime', 3),
       r('Check bank accounts', perWeek(1), 'anytime', 1),
     ],
   },
@@ -141,7 +140,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
       r('Family dinner together', daily, 'evening'),
       r('Weekly family meeting', perWeek(1)),
       r('Family outing', perWeek(1)),
-      r('Date night', perMonth(2), 'evening'),
+      r('Date night', perTwoWeeks(1), 'evening'),
     ],
   },
   // Personal

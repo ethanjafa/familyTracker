@@ -4,12 +4,12 @@ import { Pressable, Share, View } from 'react-native';
 
 import { createInvite, removeMember, setPlanningDay, updateHousehold, updateProfile } from '@/api/household';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, ChipGroup, Field, Screen, SectionTitle, styles } from '@/components/ui';
+import { Avatar, Button, Card, Dropdown, Field, Screen, SectionTitle, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { signOut } from '@/lib/auth';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
-import { PLANNING_DAY_OPTIONS, planningDayOf } from '@/lib/planning';
+import { PLANNING_DAY_NAMES, planningDayOf } from '@/lib/planning';
 import type { Member } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   const remove = async (m: Member) => {
     const ok = await confirmAsync(
       `Remove ${m.profile.display_name}?`,
-      'They lose access to the family routines and projects, and are taken off everything assigned to them. You can invite them again later.',
+      'They lose access to the family routines and to-dos, and are taken off everything assigned to them. You can invite them again later.',
       'Remove',
     );
     if (!ok) return;
@@ -105,12 +105,12 @@ export default function SettingsScreen() {
           <Button title="Invite a family member" variant="secondary" onPress={invite} loading={busy === 'invite'} />
         </Card>
 
-        <SectionTitle>Weekly planning</SectionTitle>
+        <SectionTitle>Planning day</SectionTitle>
         <Card>
+          <Dropdown options={PLANNING_DAY_NAMES} value={planningDayOf(household)} onChange={changePlanningDay} />
           <ThemedText type="small" themeColor="textSecondary">
-            Your planning day. That day, everyone gets a ⛵ Plan the week together task on Today.
+            That day, everyone gets a ⛵ Plan the week together task on Today.
           </ThemedText>
-          <ChipGroup options={PLANNING_DAY_OPTIONS} value={planningDayOf(household)} onChange={changePlanningDay} />
         </Card>
 
         <SectionTitle>Profile</SectionTitle>

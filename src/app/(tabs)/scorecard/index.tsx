@@ -10,7 +10,7 @@ import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { monthStart, today, weekStart } from '@/lib/dates';
 import { buildInsights } from '@/lib/insights';
-import { projectStats } from '@/lib/projects';
+import { categoryStats } from '@/lib/projects';
 import { band, familyRoutines, pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -72,17 +72,17 @@ export default function ScorecardScreen() {
     .sort((a, b) => b.s - a.s)
     .slice(0, 5);
 
-  // Projects visible in this scope.
+  // To-do categories visible in this scope.
   const day = today();
-  const scopedProjects = (projects.data ?? []).filter(
-    (p) => p.status === 'active' && (scope === FAMILY ? p.visibility === 'family' : scope === userId || p.visibility === 'family'),
+  const scopedCategories = (projects.data ?? []).filter((p) =>
+    scope === FAMILY ? p.visibility === 'family' : scope === userId || p.visibility === 'family',
   );
-  const projectSignals = scopedProjects.map((p) => ({ name: p.name, ...projectStats(p, items.data ?? [], day) }));
-  const stepsDone = (items.data ?? []).filter(
-    (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedProjects.some((p) => p.id === i.project_id),
+  const categorySignals = scopedCategories.map((p) => ({ name: p.name, icon: p.icon, ...categoryStats(p, items.data ?? [], day) }));
+  const todosDone = (items.data ?? []).filter(
+    (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedCategories.some((p) => p.id === i.project_id),
   ).length;
 
-  const insights = buildInsights(scoped, data.logIndex, projectSignals, now);
+  const insights = buildInsights(scoped, data.logIndex, categorySignals, now);
   const isOther = scope !== FAMILY && scope !== userId;
 
   return (
@@ -231,22 +231,24 @@ export default function ScorecardScreen() {
           </>
         )}
 
-        {scopedProjects.length > 0 && (
+        {scopedCategories.length > 0 && (
           <>
-            <SectionTitle>Projects</SectionTitle>
+            <SectionTitle>To do</SectionTitle>
             <Card>
               <ThemedText type="small" themeColor="textSecondary">
-                {stepsDone} step{stepsDone === 1 ? '' : 's'} completed this {period}
+                {todosDone} to-do{todosDone === 1 ? '' : 's'} done this {period}
               </ThemedText>
-              {projectSignals.map((p, i) => (
+              {categorySignals.map((c, i) => (
                 <View key={i} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
                     <ThemedText>
-                      {scopedProjects[i].icon} {p.name}
+                      {c.icon} {c.name}
                     </ThemedText>
-                    <ThemedText type="smallBold">{p.percent}%</ThemedText>
+                    <ThemedText type="smallBold">
+                      {c.done}/{c.total}
+                    </ThemedText>
                   </View>
-                  <ProgressBar value={p.percent} color={theme.tint} />
+                  <ProgressBar value={c.total ? (100 * c.done) / c.total : 0} color={theme.tint} />
                 </View>
               ))}
             </Card>

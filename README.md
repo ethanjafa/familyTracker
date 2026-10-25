@@ -2,13 +2,13 @@
 
 <img src="assets/brand/logo-preview.png" width="128" alt="Dragon Boat logo">
 
-Routines, projects and scorecards for the whole family, built with Expo (React Native) and Supabase.
+Routines, to-dos, meals and scorecards for the whole family, built with Expo (React Native) and Supabase.
 
-- **Routines**: category → routine (e.g. *House cleanliness → Wash dishes*), with flexible schedules, a time of day, importance, and who's responsible. Family members can take turns by weekday (e.g. *Pick up baby*: Mon → one parent, Tue → the other), and the app suggests common categories and routines.
-- **Projects**: project → steps (e.g. *Renovation → Laminate change*), with status, owner, due date, cost and budget.
+- **Routines**: category → routine (e.g. *House cleanliness → Wash dishes*), every day, on certain days, N times a week or N times every 2 weeks, with owners. Optional default days can have a different owner per day (e.g. *Pick up baby*: Mon → one parent, Tue → the other), and the app suggests common categories and routines.
+- **To do**: categories of to-dos (e.g. *Home repairs → Fix the tap*), each with an owner and a target date.
 - **Personal vs family**: personal items are visible only to you (enforced by Row Level Security); family items are shared with everyone in the household.
 - **Scorecards**: weekly and monthly scores per person or for the family, an 8-week trend, per-category breakdown, streaks, who did what, and rule-based feedback.
-- **Plan**: one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and project steps; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Have** or **Need**, filled automatically from planned meals, with a **Store mode** for shopping.
+- **Plan**: one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and to-dos; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Need**, **Have** or **Backlog**, filled automatically from planned meals, with a **Store mode** for shopping.
 - **Live sync**: changes appear on every family member's phone through Supabase Realtime.
 
 ## 1. Create the Supabase backend (one time)
@@ -22,6 +22,7 @@ Routines, projects and scorecards for the whole family, built with Expo (React N
    - [20261027000000_planning_day.sql](supabase/migrations/20261027000000_planning_day.sql): the family's planning day and its weekly task
    - [20261028000000_dinner_cooks.sql](supabase/migrations/20261028000000_dinner_cooks.sql): a cook for a day before its meal is chosen
    - [20261029000000_lunch.sql](supabase/migrations/20261029000000_lunch.sql): lunch as well as dinner in meal planning
+   - [20261030000000_grocery_backlog.sql](supabase/migrations/20261030000000_grocery_backlog.sql): a backlog list in groceries
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
    - `tracker://**` (installed builds)
@@ -48,8 +49,8 @@ The first person signs in, creates the household, and on the **Settings** tab ta
 ```
 src/app/                 screens (Expo Router)
   (tabs)/(today)         Today: what's due, one tap to check off
-  (tabs)/plan            the week table: who does each routine, dinner and project step
-  (tabs)/goals           routines (categories → routines) and projects (→ steps)
+  (tabs)/plan            the week table: who does each routine, meal and to-do
+  (tabs)/goals           routines (categories → routines) and to-dos (categories → to-dos)
   (tabs)/scorecard       scores, trends, feedback
   (tabs)/settings        family members (invite/remove), profile
   *-form.tsx             create/edit modals
@@ -63,10 +64,9 @@ supabase/migrations/     database schema and security policies
 
 ## Scoring rules
 
-- Score = weighted check-ins ÷ weighted expected check-ins. The weights are *Nice to have* = 1, *Normal* = 2, *Must do* = 3.
-- **Done** counts 1, **Partly done** counts 0.5. **Skip** is excused and doesn't count either way.
+- Score = check-ins ÷ expected check-ins. Every routine counts the same, and a routine is either done or not.
 - Today only counts once it's logged, so an unfinished day never lowers your score.
-- Weekly and monthly targets (e.g. "3× a week") are prorated over the days that have passed.
+- Times-a-week and times-every-2-weeks targets (e.g. "3× a week") are prorated over the days that have passed.
 - Your personal score covers your personal routines plus family routines assigned to you. The family score covers all family routines.
 
 ## Commands

@@ -1,4 +1,4 @@
-import { format, isBefore, isSameDay, startOfDay } from 'date-fns';
+import { addDays, format, isBefore, isSameDay, startOfDay } from 'date-fns';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { setMealCook, useMealPlans } from '@/api/meals';
@@ -10,17 +10,17 @@ import { Avatar, Card, Loading } from '@/components/ui';
 import { Radius } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { toDay, weekStart } from '@/lib/dates';
+import { prettyDay, toDay, weekStart } from '@/lib/dates';
 import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
-import { sortItems } from '@/lib/projects';
-import { assigneesOn, describeSchedule, isFlexible, plannedOn, usualAssigneesOn, usualDueOn } from '@/lib/schedule';
+import { sortTodos } from '@/lib/projects';
+import { assigneesOn, describeSchedule, periodStart, plannedOn, usualAssigneesOn, usualDueOn } from '@/lib/schedule';
 import type { MealSlot, Member, Routine } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
 const NAME_WIDTH = 118;
-/** Unplanned steps shown per project; the rest stay in Goals. */
-const STEPS_PER_PROJECT = 3;
+/** Unplanned to-dos shown per category; the rest stay in Goals. */
+const TODOS_PER_CATEGORY = 3;
 
 /** off = not that day · open = that day, but nobody responsible · owner = someone's on it */
 type Cell = { kind: 'off' } | { kind: 'open' } | { kind: 'owner'; userId: string; changed?: boolean };
@@ -62,6 +62,23 @@ function nextRoutineChange(routine: Routine, day: Date, members: Member[]): Plan
   return next.planned ? { planned: true, assignee_id: next.assignee } : { planned: false, assignee_id: null };
 }
 
+/**
+ * Days with an owner vs. days the frequency asks for. Every day / certain days: the default days
+ * this week. Times a week: that number. Times every 2 weeks: that number across the two-week cycle.
+ * Older "times a month" routines have no weekly requirement (0).
+ */
+function routineProgress(routine: Routine, days: Date[]) {
+  const s = routine.schedule;
+  const span =
+    s.type === 'biweekly'
+      ? Array.from({ length: 14 }, (_, i) => addDays(periodStart(routine, days[0]), i))
+      : days;
+  const owned = span.filter((d) => plannedOn(routine, d) && assigneesOn(routine, d).length > 0).length;
+  const required =
+    s.type === 'weekly' || s.type === 'biweekly' ? s.times : s.type === 'monthly' ? 0 : days.filter((d) => usualDueOn(routine, d)).length;
+  return { owned, required };
+}
+
 /** Each person in turn, then nobody (`null`). */
 function nextPerson(current: string | null, members: Member[]): string | null {
   const ids = members.map((m) => m.user_id);
@@ -69,7 +86,7 @@ function nextPerson(current: string | null, members: Member[]): string | null {
   return i + 1 < ids.length ? ids[i + 1] : null;
 }
 
-/** Plan: one table for the week. Rows are family routines, meals and project steps; tap a box to change who. */
+/** Plan: one table for the week. Rows are family routines, meals and to-dos; tap a box to change who. */
 export function PlanTable({ days }: { days: Date[] }) {
   const theme = useTheme();
   const { household, members } = useHousehold();
@@ -84,24 +101,26 @@ export function PlanTable({ days }: { days: Date[] }) {
   const upcoming = (d: Date) => !isBefore(d, today);
   const keys = days.map(toDay);
 
-  // Routines (family ones; personal routines are always yours).
+  // Routines (family ones; personal routines are always yours), grouped by category in Goals order.
+  const categoryOrder = new Map(data.categories.map((c, i) => [c.id, i]));
   const routineRows: Row[] = data.routines
     .filter((r) => data.categoryById.get(r.category_id)?.visibility === 'family')
+    .sort((a, b) => categoryOrder.get(a.category_id)! - categoryOrder.get(b.category_id)!)
     .map((r) => {
+      const category = data.categoryById.get(r.category_id)!;
       const cells: Cell[] = days.map((d) => {
         if (!plannedOn(r, d)) return { kind: 'off' };
         const who = assigneesOn(r, d);
         return who.length ? { kind: 'owner', userId: who[0], changed: r.plans?.has(toDay(d)) } : { kind: 'open' };
       });
-      const owned = cells.filter((c) => c.kind === 'owner').length;
-      const target = r.schedule.type === 'weekly' ? r.schedule.times : 0;
-      const openAhead = cells.some((c, i) => c.kind === 'open' && upcoming(days[i]));
+      const { owned, required } = routineProgress(r, days);
       return {
         key: r.id,
-        icon: data.categoryById.get(r.category_id)!.icon,
+        icon: category.icon,
         title: r.name,
-        subtitle: isFlexible(r.schedule) && target ? `${owned}/${target} days` : describeSchedule(r.schedule),
-        needs: openAhead || owned < target,
+        subtitle: required ? `${category.name} · ${owned}/${required}` : `${category.name} · ${describeSchedule(r.schedule)}`,
+        // Planned once enough days have an owner for its frequency (3× a week → 3 owned days).
+        needs: required ? owned < required : cells.some((c, i) => c.kind === 'open' && upcoming(days[i])),
         cells,
         onPress: (i) => setRoutinePlan(r, keys[i], nextRoutineChange(r, days[i], members)),
       };
@@ -130,28 +149,29 @@ export function PlanTable({ days }: { days: Date[] }) {
     };
   };
 
-  // Project steps of active family projects: planned this week, or not planned yet.
+  // Family to-dos: planned this week, or not planned yet.
   const thisWeek = toDay(weekStart(today));
-  const stepRows: Row[] = [];
-  let hiddenSteps = 0;
-  for (const p of (projects.data ?? []).filter((p) => p.status === 'active' && p.visibility === 'family')) {
-    const open = sortItems((items.data ?? []).filter((i) => i.project_id === p.id && i.status !== 'done'));
+  const todoRows: Row[] = [];
+  let hiddenTodos = 0;
+  for (const p of (projects.data ?? []).filter((p) => p.visibility === 'family')) {
+    const open = sortTodos((items.data ?? []).filter((i) => i.project_id === p.id && i.status !== 'done'));
     const planned = open.filter((i) => i.planned_date && keys.includes(i.planned_date));
     // Planned for a past week but not finished counts as not planned.
     const waiting = open.filter((i) => !i.planned_date || i.planned_date < thisWeek);
-    hiddenSteps += Math.max(0, waiting.length - STEPS_PER_PROJECT);
-    for (const item of [...planned, ...waiting.slice(0, STEPS_PER_PROJECT)]) {
+    hiddenTodos += Math.max(0, waiting.length - TODOS_PER_CATEGORY);
+    for (const item of [...planned, ...waiting.slice(0, TODOS_PER_CATEGORY)]) {
       const day = item.planned_date && keys.includes(item.planned_date) ? item.planned_date : null;
-      stepRows.push({
+      todoRows.push({
         key: item.id,
         icon: p.icon,
         title: item.title,
-        subtitle: p.name,
-        needs: !day || !item.assignee_id,
+        subtitle: item.due_date ? `${p.name} · by ${prettyDay(item.due_date)}` : p.name,
+        // Planned once it has an owner, and a day if its target date is in (or before) this week.
+        needs: !item.assignee_id || (!day && !!item.due_date && item.due_date <= keys[6]),
         cells: keys.map((k) =>
           k !== day ? { kind: 'off' } : item.assignee_id ? { kind: 'owner', userId: item.assignee_id } : { kind: 'open' },
         ),
-        // Tap another day to move the step there; tap its day to cycle who, then take it off the week.
+        // Tap another day to move the to-do there; tap its day to cycle who, then take it off the week.
         onPress: (i) => {
           if (keys[i] !== day) return planItem(item, { planned_date: keys[i] }).catch(fail);
           const ids = members.map((m) => m.user_id);
@@ -166,7 +186,7 @@ export function PlanTable({ days }: { days: Date[] }) {
   const sections = [
     { title: 'Routines', rows: routineRows },
     { title: 'Meals', rows: [mealRow('lunch'), mealRow('dinner')] },
-    { title: 'Project steps', rows: stepRows },
+    { title: 'To do', rows: todoRows },
   ].filter((s) => s.rows.length);
   const all = sections.flatMap((s) => s.rows);
   const needing = all.filter((r) => r.needs).length;
@@ -198,9 +218,9 @@ export function PlanTable({ days }: { days: Date[] }) {
             ))}
           </View>
         ))}
-        {hiddenSteps > 0 && (
+        {hiddenTodos > 0 && (
           <ThemedText type="small" themeColor="textSecondary" style={{ paddingVertical: 8, textAlign: 'center' }}>
-            + {hiddenSteps} more steps in Goals
+            + {hiddenTodos} more to-dos in Goals
           </ThemedText>
         )}
       </Card>

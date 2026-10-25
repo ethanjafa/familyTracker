@@ -83,8 +83,8 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="category-form" options={modal} />
           <Stack.Screen name="routine-form" options={modal} />
-          <Stack.Screen name="project-form" options={modal} />
-          <Stack.Screen name="item-form" options={modal} />
+          <Stack.Screen name="todo-category-form" options={modal} />
+          <Stack.Screen name="todo-form" options={modal} />
           <Stack.Screen name="suggestion" options={modal} />
           <Stack.Screen name="meal-form" options={modal} />
           <Stack.Screen name="meals" options={modal} />

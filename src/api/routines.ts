@@ -88,14 +88,14 @@ export async function saveRoutine(
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
-type NewRoutine = Pick<Routine, 'name' | 'schedule' | 'time_of_day' | 'weight'>;
+type NewRoutine = Pick<Routine, 'name' | 'schedule'>;
 
 /** Add several routines to a category at once (e.g. from suggestions). */
 export async function addRoutines(householdId: string, categoryId: string, routines: NewRoutine[]) {
   if (!routines.length) return;
   const { error } = await supabase
     .from('routines')
-    .insert(routines.map((r) => ({ ...r, household_id: householdId, category_id: categoryId })));
+    .insert(routines.map((r) => ({ name: r.name, schedule: r.schedule, household_id: householdId, category_id: categoryId })));
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
@@ -109,16 +109,6 @@ export async function addCategoryWithRoutines(
   if (error) throw error;
   await addRoutines(category.household_id, data.id, routines);
   await queryClient.invalidateQueries({ queryKey: ['routine_categories'] });
-}
-
-/** Archiving keeps history in old scorecards; the routine just stops appearing. */
-export async function archiveRoutine(id: string) {
-  const { error } = await supabase
-    .from('routines')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
 /** Deleting removes the routine and all of its check-ins from every scorecard. */

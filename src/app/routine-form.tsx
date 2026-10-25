@@ -2,16 +2,16 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { archiveRoutine, deleteRoutine, saveRoutine } from '@/api/routines';
+import { deleteRoutine, saveRoutine } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Chip, ChipGroup, Field, Label, Loading, Screen, Segmented, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
-import { hasDayAssignees, scheduleWeekdays } from '@/lib/schedule';
-import { type RoutineTemplate, routineIdeas } from '@/lib/suggestions';
-import type { Routine, Schedule, TimeOfDay } from '@/lib/types';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { describeSchedule, hasDayAssignees } from '@/lib/schedule';
+import { type RoutineTemplate, routineIdeas } from '@/lib/suggestions';
+import type { Routine, Schedule } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
 const WEEKDAYS = [
@@ -26,8 +26,24 @@ const WEEKDAYS = [
 
 const firstName = (name: string) => name.trim().split(/\s+/)[0];
 
-const COUNTS =[1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n}×` }));
-const INTERVALS = [2, 3, 4, 5, 7, 14].map((n) => ({ value: n, label: `${n} days` }));
+const COUNTS = [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: `${n}×` }));
+
+/** A day the routine falls on by default, with the key its owner is stored under. */
+type Slot = { key: string; label: string };
+
+/** Default days of a schedule (none for times-a-week routines without picked days). */
+function slotsOf(s: Schedule): Slot[] {
+  if (s.type === 'daily') return WEEKDAYS.map((d) => ({ key: String(d.value), label: d.label }));
+  if (s.type === 'weekdays' || (s.type === 'weekly' && s.days)) {
+    const days = s.type === 'weekdays' ? s.days : s.days!;
+    return WEEKDAYS.filter((d) => days.includes(d.value)).map((d) => ({ key: String(d.value), label: d.label }));
+  }
+  if (s.type === 'biweekly' && s.days) {
+    // Cycle days: 0–6 = Mon–Sun of week 1, 7–13 = week 2.
+    return [...s.days].sort((a, b) => a - b).map((i) => ({ key: `b${i}`, label: `${WEEKDAYS[i % 7].label} ${i < 7 ? '1' : '2'}` }));
+  }
+  return [];
+}
 
 export default function RoutineForm() {
   const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
@@ -61,54 +77,57 @@ function RoutineFormBody({
   const { household, members } = useHousehold();
   const [name, setName] = useState(existing?.name ?? '');
   const [schedule, setSchedule] = useState<Schedule>(existing?.schedule ?? { type: 'daily' });
-  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(existing?.time_of_day ?? 'anytime');
-  const [weight, setWeight] = useState(existing?.weight ?? 2);
   const [assignees, setAssignees] = useState<string[]>(existing?.assignee_ids ?? []);
   const [turns, setTurns] = useState(existing ? hasDayAssignees(existing) : false);
   const [dayAssignees, setDayAssignees] = useState<Partial<Record<string, string>>>(existing?.day_assignees ?? {});
   const [busy, setBusy] = useState(false);
 
-  // Taking turns only makes sense for routines tied to weekdays (every day, or certain days).
-  const weekdays = scheduleWeekdays(schedule);
-  const takingTurns = isFamily && turns && weekdays !== null;
-  const setDayAssignee = (day: number, userId: string | null) =>
-    setDayAssignees((m) => ({ ...m, [String(day)]: userId ?? undefined }));
+  const flexible = schedule.type === 'weekly' || schedule.type === 'biweekly';
+  const pickedDays = flexible ? schedule.days : undefined;
+  const slots = slotsOf(schedule);
+  const perDay = isFamily && turns && slots.length > 0;
+  // Older routines may use schedules that are no longer offered; keep them editable as they are.
+  const legacy = existing && (existing.schedule.type === 'monthly' || existing.schedule.type === 'interval') ? existing.schedule : null;
 
   const setType = (type: Schedule['type']) => {
     if (type === schedule.type) return;
     if (type === 'daily') setSchedule({ type });
     if (type === 'weekdays') setSchedule({ type, days: [1, 2, 3, 4, 5] });
     if (type === 'weekly') setSchedule({ type, times: 3 });
-    if (type === 'monthly') setSchedule({ type, times: 2 });
-    if (type === 'interval') setSchedule({ type, every: 3 });
+    if (type === 'biweekly') setSchedule({ type, times: 1 });
+    if ((type === 'monthly' || type === 'interval') && legacy) setSchedule(legacy);
   };
 
   const toggleDay = (d: number) => {
-    if (schedule.type !== 'weekdays') return;
-    const days = schedule.days.includes(d) ? schedule.days.filter((x) => x !== d) : [...schedule.days, d];
-    setSchedule({ type: 'weekdays', days });
+    if (schedule.type === 'weekdays') {
+      setSchedule({ ...schedule, days: schedule.days.includes(d) ? schedule.days.filter((x) => x !== d) : [...schedule.days, d] });
+    } else if (flexible) {
+      const days = schedule.days ?? [];
+      setSchedule({ ...schedule, days: days.includes(d) ? days.filter((x) => x !== d) : [...days, d] });
+    }
+  };
+
+  const setDefaults = (on: boolean) => {
+    if (!flexible) return;
+    setSchedule(on ? { ...schedule, days: schedule.days ?? [] } : { type: schedule.type, times: schedule.times });
   };
 
   const applyIdea = (t: RoutineTemplate) => {
     setName(t.name);
     setSchedule(t.schedule);
-    setTimeOfDay(t.time_of_day);
-    setWeight(t.weight);
   };
   const nameIdeas = existing ? [] : ideas(name).filter((t) => t.name !== name).slice(0, 6);
 
-  const toggleAssignee = (id: string) =>
-    setAssignees((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+  const toggleAssignee = (id: string) => setAssignees((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+  const setOwner = (key: string, userId: string | null) => setDayAssignees((m) => ({ ...m, [key]: userId ?? undefined }));
 
-  const valid = name.trim() && (schedule.type !== 'weekdays' || schedule.days.length > 0);
+  const valid =
+    name.trim() && (schedule.type !== 'weekdays' || schedule.days.length > 0) && (!pickedDays || pickedDays.length > 0);
 
   const save = async () => {
     setBusy(true);
-    const rota = takingTurns
-      ? Object.fromEntries(
-          Object.entries(dayAssignees).filter(([d, id]) => id && weekdays?.includes(Number(d))),
-        )
-      : {};
+    const keys = new Set(slots.map((s) => s.key));
+    const rota = perDay ? Object.fromEntries(Object.entries(dayAssignees).filter(([k, id]) => id && keys.has(k))) : {};
     try {
       await saveRoutine({
         id: existing?.id,
@@ -116,11 +135,9 @@ function RoutineFormBody({
         category_id: categoryId,
         name: name.trim(),
         schedule,
-        time_of_day: timeOfDay,
-        weight,
-        assignee_ids: takingTurns ? [...new Set(Object.values(rota) as string[])] : isFamily ? assignees : [],
+        assignee_ids: perDay ? [...new Set(Object.values(rota) as string[])] : isFamily ? assignees : [],
         // Only send the column once it exists (or is needed), so routines still save before the migration runs.
-        ...(takingTurns || existing?.day_assignees !== undefined ? { day_assignees: rota } : {}),
+        ...(perDay || existing?.day_assignees !== undefined ? { day_assignees: rota } : {}),
       });
       router.back();
     } catch (e) {
@@ -128,20 +145,10 @@ function RoutineFormBody({
       showAlert(
         'Could not save',
         message.includes('day_assignees')
-          ? 'Taking turns needs a quick database update. Run supabase/migrations/20261024000000_day_assignees.sql in the Supabase SQL Editor, then try again.'
+          ? 'Owners per day need a quick database update. Run supabase/migrations/20261024000000_day_assignees.sql in the Supabase SQL Editor, then try again.'
           : message,
       );
       setBusy(false);
-    }
-  };
-
-  const archive = async () => {
-    if (!(await confirmAsync('Archive routine?', 'It stops showing up. Past check-ins stay in your history.', 'Archive'))) return;
-    try {
-      await archiveRoutine(existing!.id);
-      router.back();
-    } catch (e) {
-      showAlert('Could not archive', errorMessage(e));
     }
   };
 
@@ -179,8 +186,8 @@ function RoutineFormBody({
             { value: 'daily', label: 'Every day' },
             { value: 'weekdays', label: 'Certain days' },
             { value: 'weekly', label: 'Times / week' },
-            { value: 'monthly', label: 'Times / month' },
-            { value: 'interval', label: 'Every N days' },
+            { value: 'biweekly', label: 'Times / 2 weeks' },
+            ...(legacy ? [{ value: legacy.type, label: describeSchedule(legacy) }] : []),
           ]}
           value={schedule.type}
           onChange={setType}
@@ -192,78 +199,84 @@ function RoutineFormBody({
             ))}
           </View>
         )}
-        {(schedule.type === 'weekly' || schedule.type === 'monthly') && (
-          <ChipGroup options={COUNTS} value={schedule.times} onChange={(times) => setSchedule({ type: schedule.type, times })} />
+        {flexible && (
+          <>
+            <ChipGroup options={COUNTS} value={schedule.times} onChange={(times) => setSchedule({ ...schedule, times })} />
+            <Label>Default days (optional)</Label>
+            <Segmented
+              options={[
+                { value: 'any', label: 'Any days' },
+                { value: 'set', label: 'Set default days' },
+              ]}
+              value={pickedDays ? 'set' : 'any'}
+              onChange={(v) => setDefaults(v === 'set')}
+            />
+            {pickedDays && schedule.type === 'weekly' && (
+              <View style={styles.wrap}>
+                {WEEKDAYS.map((d) => (
+                  <Chip key={d.value} label={d.label} selected={pickedDays.includes(d.value)} onPress={() => toggleDay(d.value)} />
+                ))}
+              </View>
+            )}
+            {pickedDays && schedule.type === 'biweekly' && (
+              <View style={{ gap: Spacing.two }}>
+                {[0, 7].map((offset) => (
+                  <View key={offset} style={[styles.row, { alignItems: 'flex-start', gap: Spacing.two }]}>
+                    <ThemedText type="smallBold" style={{ width: 52, paddingTop: 8 }}>
+                      Week {offset ? 2 : 1}
+                    </ThemedText>
+                    <View style={[styles.wrap, { flex: 1 }]}>
+                      {WEEKDAYS.map((d, i) => (
+                        <Chip key={d.value} label={d.label} selected={pickedDays.includes(offset + i)} onPress={() => toggleDay(offset + i)} />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+            <ThemedText type="small" themeColor="textSecondary">
+              {pickedDays
+                ? `${pickedDays.length} of ${schedule.times} picked. Plan uses these days until you change a week.`
+                : `Any ${schedule.times} days ${schedule.type === 'weekly' ? 'each week' : 'in two weeks'}. Pick them each week in Plan.`}
+            </ThemedText>
+          </>
         )}
-        {schedule.type === 'interval' && (
-          <ChipGroup options={INTERVALS} value={schedule.every} onChange={(every) => setSchedule({ type: 'interval', every })} />
-        )}
-
-        <Label>When</Label>
-        <ChipGroup
-          options={[
-            { value: 'morning', label: '🌅 Morning' },
-            { value: 'day', label: '☀️ Day' },
-            { value: 'evening', label: '🌙 Evening' },
-            { value: 'anytime', label: 'Anytime' },
-          ]}
-          value={timeOfDay}
-          onChange={setTimeOfDay}
-        />
-
-        <Label>Importance</Label>
-        <ChipGroup
-          options={[
-            { value: 1, label: 'Nice to have' },
-            { value: 2, label: 'Normal' },
-            { value: 3, label: 'Must do' },
-          ]}
-          value={weight}
-          onChange={setWeight}
-        />
-        <ThemedText type="small" themeColor="textSecondary">
-          Important routines weigh more in your scorecard.
-        </ThemedText>
 
         {isFamily && (
           <>
-            <Label>Responsible</Label>
-            {weekdays !== null && (
+            <Label>Owners</Label>
+            {slots.length > 0 && (
               <Segmented
                 options={[
                   { value: 'same', label: 'Same every day' },
-                  { value: 'turns', label: 'Take turns by day' },
+                  { value: 'turns', label: 'Owner per day' },
                 ]}
-                value={takingTurns ? 'turns' : 'same'}
+                value={perDay ? 'turns' : 'same'}
                 onChange={(v) => setTurns(v === 'turns')}
               />
             )}
-            {takingTurns ? (
+            {perDay ? (
               <View style={{ gap: Spacing.three }}>
-                {WEEKDAYS.filter((d) => weekdays?.includes(d.value)).map((d) => (
-                  <View key={d.value} style={[styles.row, { alignItems: 'flex-start', gap: Spacing.three }]}>
-                    <ThemedText type="smallBold" style={{ width: 36, paddingTop: 8 }}>
-                      {d.label}
+                {slots.map((slot) => (
+                  <View key={slot.key} style={[styles.row, { alignItems: 'flex-start', gap: Spacing.three }]}>
+                    <ThemedText type="smallBold" style={{ width: 48, paddingTop: 8 }}>
+                      {slot.label}
                     </ThemedText>
                     <View style={[styles.wrap, { flex: 1 }]}>
-                      <Chip
-                        label="Anyone"
-                        selected={!dayAssignees[String(d.value)]}
-                        onPress={() => setDayAssignee(d.value, null)}
-                      />
+                      <Chip label="Anyone" selected={!dayAssignees[slot.key]} onPress={() => setOwner(slot.key, null)} />
                       {members.map((m) => (
                         <Chip
                           key={m.user_id}
                           label={firstName(m.profile.display_name)}
-                          selected={dayAssignees[String(d.value)] === m.user_id}
-                          onPress={() => setDayAssignee(d.value, m.user_id)}
+                          selected={dayAssignees[slot.key] === m.user_id}
+                          onPress={() => setOwner(slot.key, m.user_id)}
                         />
                       ))}
                     </View>
                   </View>
                 ))}
                 <ThemedText type="small" themeColor="textSecondary">
-                  Each day, the routine shows under that person&apos;s Mine list and counts toward their score.
+                  On each day, the routine shows on that person&apos;s Today list and counts toward their score.
                 </ThemedText>
               </View>
             ) : (
@@ -279,7 +292,7 @@ function RoutineFormBody({
                   ))}
                 </View>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Anyone can check it off. Assigned people get it counted in their personal score.
+                  Anyone can check it off. Owners get it counted in their personal score.
                 </ThemedText>
               </>
             )}
@@ -287,7 +300,6 @@ function RoutineFormBody({
         )}
 
         <Button title="Save" onPress={save} loading={busy} disabled={!valid} />
-        {existing && <Button title="Archive routine" variant="secondary" onPress={archive} />}
         {existing && <Button title="Delete routine" variant="danger" onPress={remove} />}
       </Screen>
     </>

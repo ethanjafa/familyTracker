@@ -13,7 +13,6 @@ import { getTemplate } from '@/lib/suggestions';
 import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
-const TIME_LABEL = { morning: 'Morning', day: 'Day', evening: 'Evening', anytime: '' };
 
 /** Preview a suggested category and pick which of its routines to add. */
 export default function SuggestionScreen() {
@@ -79,7 +78,7 @@ export default function SuggestionScreen() {
                 <View style={{ flex: 1 }}>
                   <ThemedText style={{ fontWeight: 600 }}>{r.name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {[describeSchedule(r.schedule), TIME_LABEL[r.time_of_day], r.weight === 3 ? 'Must do' : ''].filter(Boolean).join(' · ')}
+                    {describeSchedule(r.schedule)}
                   </ThemedText>
                 </View>
               </Pressable>

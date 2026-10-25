@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, getDay, isBefore } from 'date-fns';
+import { addDays, differenceInCalendarDays, endOfMonth, getDay, getDaysInMonth, isBefore } from 'date-fns';
 
 import { fromDay, monthStart, toDay, weekStart } from '@/lib/dates';
 import type { Routine, RoutineLog, Schedule } from '@/lib/types';
@@ -16,6 +16,8 @@ export function describeSchedule(s: Schedule): string {
         .join(', ');
     case 'weekly':
       return `${s.times}× a week`;
+    case 'biweekly':
+      return `${s.times}× every 2 weeks`;
     case 'monthly':
       return `${s.times}× a month`;
     case 'interval':
@@ -23,24 +25,41 @@ export function describeSchedule(s: Schedule): string {
   }
 }
 
-/** Fixed schedules are due on specific days; flexible ones need N completions per week/month. */
-export const isFlexible = (s: Schedule) => s.type === 'weekly' || s.type === 'monthly';
+/** Fixed schedules are due on specific days; flexible ones need N completions per period. */
+export const isFlexible = (s: Schedule) => s.type === 'weekly' || s.type === 'biweekly' || s.type === 'monthly';
 
-/** Weekdays (0 = Sunday) a schedule can fall on, or null when it isn't tied to weekdays. */
+/**
+ * Weekdays (0 = Sunday) a schedule falls on by default, or null when it isn't tied to weekdays.
+ * Times-a-week routines count once default days are picked.
+ */
 export function scheduleWeekdays(s: Schedule): number[] | null {
   if (s.type === 'daily') return [0, 1, 2, 3, 4, 5, 6];
   if (s.type === 'weekdays') return s.days;
+  if (s.type === 'weekly' && s.days?.length) return s.days;
   return null;
 }
 
-/** Whether a routine takes turns: a different person on different weekdays. */
+/** Day 0–13 of a two-week cycle (0 = Monday of week 1), counted from the routine's start week. */
+export function cycleDay(routine: Routine, day: Date) {
+  const diff = differenceInCalendarDays(day, weekStart(fromDay(routine.start_date)));
+  return ((diff % 14) + 14) % 14;
+}
+
+/** The key a day's default owner is stored under: the weekday, or "b<cycle day>" for every-2-weeks routines. */
+export const dayKey = (routine: Routine, day: Date) =>
+  routine.schedule.type === 'biweekly' ? `b${cycleDay(routine, day)}` : String(getDay(day));
+
+/** Whether a routine has default days. */
+const hasDefaultDays = (s: Schedule) => scheduleWeekdays(s) !== null || (s.type === 'biweekly' && !!s.days?.length);
+
+/** Whether a routine has a different person on different days. */
 export const hasDayAssignees = (r: Routine) =>
-  scheduleWeekdays(r.schedule) !== null && Object.values(r.day_assignees ?? {}).some(Boolean);
+  hasDefaultDays(r.schedule) && Object.values(r.day_assignees ?? {}).some(Boolean);
 
 /** Who is usually responsible on a given day, ignoring that week's plan. */
 export function usualAssigneesOn(routine: Routine, day: Date): string[] {
   if (!hasDayAssignees(routine)) return routine.assignee_ids;
-  const id = routine.day_assignees?.[String(getDay(day))];
+  const id = routine.day_assignees?.[dayKey(routine, day)];
   return id ? [id] : [];
 }
 
@@ -53,12 +72,11 @@ export function assigneesOn(routine: Routine, day: Date): string[] {
   return usualAssigneesOn(routine, day);
 }
 
-/** The weekdays a person is on duty for a turn-taking routine. */
-export function daysAssignedTo(routine: Routine, userId: string): number[] {
-  return (scheduleWeekdays(routine.schedule) ?? []).filter((d) => routine.day_assignees?.[String(d)] === userId);
-}
+/** Whether someone is a default owner on any day of a routine. */
+export const isDayAssignee = (routine: Routine, userId: string) =>
+  hasDayAssignees(routine) && Object.values(routine.day_assignees ?? {}).includes(userId);
 
-/** Whether the regular schedule puts a fixed routine on this day (flexible ones never are). */
+/** Whether the routine's default schedule puts it on this day. */
 export function usualDueOn(routine: Routine, day: Date): boolean {
   const start = fromDay(routine.start_date);
   if (isBefore(day, start)) return false;
@@ -68,6 +86,10 @@ export function usualDueOn(routine: Routine, day: Date): boolean {
       return true;
     case 'weekdays':
       return s.days.includes(getDay(day));
+    case 'weekly':
+      return !!s.days?.includes(getDay(day));
+    case 'biweekly':
+      return !!s.days?.includes(cycleDay(routine, day));
     case 'interval':
       return differenceInCalendarDays(day, start) % Math.max(1, s.every) === 0;
     default:
@@ -75,7 +97,7 @@ export function usualDueOn(routine: Routine, day: Date): boolean {
   }
 }
 
-/** Whether a routine is on the plan for a day: its usual schedule, unless that day was planned differently. */
+/** Whether a routine is on the plan for a day: its default schedule, unless that day was planned differently. */
 export function plannedOn(routine: Routine, day: Date): boolean {
   const plan = planFor(routine, day);
   return plan ? plan.planned : usualDueOn(routine, day);
@@ -90,19 +112,37 @@ export function isFixedDueOn(routine: Routine, day: Date): boolean {
   return plannedFor(routine, day);
 }
 
-/** Whether a flexible routine was placed on any day of the week containing `day`. */
-function hasPlacedDays(routine: Routine, day: Date) {
-  const start = weekStart(day);
-  for (let i = 0; i < 7; i++) if (planFor(routine, addDays(start, i))?.planned) return true;
-  return false;
+/** Start of the period a flexible target is counted over (week, two-week cycle, or month). */
+export function periodStart(routine: Routine, day: Date): Date {
+  const s = routine.schedule;
+  if (s.type === 'monthly') return monthStart(day);
+  if (s.type === 'biweekly') return addDays(day, -cycleDay(routine, day));
+  return weekStart(day);
 }
 
-export function periodStart(s: Schedule, day: Date): Date {
-  return s.type === 'monthly' ? monthStart(day) : weekStart(day);
+/** Last day of the period that starts at `start`. */
+export function periodEnd(routine: Routine, start: Date): Date {
+  const s = routine.schedule;
+  if (s.type === 'monthly') return endOfMonth(start);
+  return addDays(start, s.type === 'biweekly' ? 13 : 6);
 }
+
+export const periodLength = (routine: Routine, start: Date) =>
+  routine.schedule.type === 'monthly' ? getDaysInMonth(start) : routine.schedule.type === 'biweekly' ? 14 : 7;
 
 export function flexibleTarget(s: Schedule): number {
-  return s.type === 'weekly' || s.type === 'monthly' ? s.times : 1;
+  return s.type === 'weekly' || s.type === 'biweekly' || s.type === 'monthly' ? s.times : 1;
+}
+
+/** "week", "2 weeks" or "month": the period a flexible target is counted over. */
+export const periodName = (s: Schedule) => (s.type === 'monthly' ? 'month' : s.type === 'biweekly' ? '2 weeks' : 'week');
+
+/** Whether a flexible routine is on any day of its current period (by default days or by a plan). */
+function hasPlacedDays(routine: Routine, day: Date) {
+  const start = periodStart(routine, day);
+  const end = periodEnd(routine, start);
+  for (let d = start; !isBefore(end, d); d = addDays(d, 1)) if (plannedOn(routine, d)) return true;
+  return false;
 }
 
 /** Sum of completion values for a routine from `from` up to and including `to`. */
@@ -124,16 +164,15 @@ export function logValue(log: RoutineLog | undefined): number | null {
 }
 
 /**
- * Whether a routine belongs on the Today list. Flexible routines show while their
- * week/month target isn't met yet (or on the days they were placed), or if already logged today.
+ * Whether a routine belongs on the Today list. Flexible routines show on their days when they
+ * have some (default or planned); otherwise while the period's target isn't met. Logged = shown.
  */
 export function isDueToday(routine: Routine, logs: Map<string, RoutineLog> | undefined, day: Date) {
   if (routine.archived_at) return false;
   if (!isFlexible(routine.schedule)) return isFixedDueOn(routine, day);
   if (isBefore(day, fromDay(routine.start_date))) return false;
   if (logs?.has(toDay(day))) return true;
-  // Once placed on days in Plan, a flexible routine only shows on those days.
   if (hasPlacedDays(routine, day)) return plannedFor(routine, day);
-  const done = completedBetween(logs, periodStart(routine.schedule, day), day);
+  const done = completedBetween(logs, periodStart(routine, day), day);
   return done < flexibleTarget(routine.schedule);
 }

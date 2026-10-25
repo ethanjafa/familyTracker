@@ -13,17 +13,17 @@ export type Insight = {
   body?: string;
 };
 
-type ProjectSignal = { name: string; stalled: boolean; idleDays: number; overdue: number };
+type TodoSignal = { name: string; overdue: number };
 
 /** Rule-based coaching feedback. Order = priority. */
 export function buildInsights(
   routines: Routine[],
   logs: LogIndex,
-  projects: ProjectSignal[],
+  todos: TodoSignal[],
   now = new Date(),
 ): Insight[] {
   const out: Insight[] = [];
-  if (routines.length === 0 && projects.length === 0) {
+  if (routines.length === 0 && todos.length === 0) {
     return [{ id: 'empty', tone: 'info', icon: '🌱', title: 'Add a few routines to start getting feedback.' }];
   }
 
@@ -108,12 +108,10 @@ export function buildInsights(
     }
   }
 
-  // 6. Projects.
-  for (const p of projects) {
-    if (p.stalled) {
-      out.push({ id: `stall-${p.name}`, tone: 'warn', icon: '🐢', title: `${p.name} hasn't moved in ${p.idleDays} days`, body: 'Pick one small next step and schedule it.' });
-    } else if (p.overdue) {
-      out.push({ id: `overdue-${p.name}`, tone: 'warn', icon: '⏰', title: `${p.name}: ${p.overdue} overdue step${p.overdue > 1 ? 's' : ''}`, body: 'Reschedule or do it. Overdue tasks drain motivation.' });
+  // 6. To-dos past their target date.
+  for (const t of todos) {
+    if (t.overdue) {
+      out.push({ id: `overdue-${t.name}`, tone: 'warn', icon: '⏰', title: `${t.name}: ${t.overdue} to-do${t.overdue > 1 ? 's' : ''} past the target date`, body: 'Do it, or pick a new target date in Plan.' });
     }
   }
 
