@@ -7,6 +7,7 @@ import { useGroceries } from '@/api/groceries';
 import { useMealPlans, useMeals } from '@/api/meals';
 import { useProjectItems, useProjects } from '@/api/projects';
 import { Dashboard, type Tile } from '@/components/dashboard';
+import { DraggableList } from '@/components/draggable-list';
 import { RoutineRow } from '@/components/routine-row';
 import { TodoRow } from '@/components/todo-row';
 import { ThemedText } from '@/components/themed-text';
@@ -30,10 +31,12 @@ import { assigneesOn, isDueToday } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
 import { sortTodos } from '@/lib/projects';
 import { pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
+import { applyOrder, loadOrder, mergeOrder, saveOrder } from '@/lib/today-order';
 import type { MealSlot } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
-type Filter = 'mine' | 'family' | 'all';
+/** Mine = my routines and to-dos (plus unassigned family ones); All = everyone's. */
+type Filter = 'mine' | 'all';
 
 const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours() < 18 ? 'Good afternoon' : 'Good evening');
 
@@ -48,7 +51,14 @@ export default function TodayScreen() {
   const meals = useMeals();
   const mealPlans = useMealPlans();
   const groceries = useGroceries();
-  const [filter, setFilter] = useState<Filter>('family');
+  const [filter, setFilter] = useState<Filter>('mine');
+  // Your own order of routines and to-dos, set by holding and dragging.
+  const [order, setOrder] = useState(() => loadOrder(userId));
+  const reorder = (keys: string[]) => {
+    const next = mergeOrder(keys, order);
+    setOrder(next);
+    saveOrder(userId, next);
+  };
 
   const now = new Date();
   const day = toDay(now);
@@ -64,11 +74,11 @@ export default function TodayScreen() {
         if (own) return isDueToday(own, data.logIndex.get(r.id), now);
         return category.visibility === 'family' && assigneesOn(r, now).length === 0;
       }
-      if (filter === 'family') return category.visibility === 'family';
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filter, userId, day]);
+  const routinesToday = applyOrder(due, (r) => r.id, order);
 
   const doneCount = due.filter((r) => data.logIndex.get(r.id)?.has(day)).length;
   const weekScore = pct(scoreRoutines(routinesFor(userId, data.routines, data.categoryById), data.logIndex, weekStart(now), now));
@@ -77,11 +87,14 @@ export default function TodayScreen() {
   const categoryById = new Map((projects.data ?? []).map((p) => [p.id, p]));
   const openTodos = sortTodos(
     (items.data ?? []).filter(
-      (i) => i.status !== 'done' && categoryById.has(i.project_id) && (!i.assignee_id || i.assignee_id === userId),
+      (i) =>
+        i.status !== 'done' &&
+        categoryById.has(i.project_id) &&
+        (filter === 'all' || !i.assignee_id || i.assignee_id === userId),
     ),
   );
   const todosToday = openTodos.filter((i) => i.planned_date === day || (!!i.due_date && i.due_date <= day));
-  const todos = todosToday.length ? todosToday : openTodos.slice(0, 3);
+  const todos = applyOrder(todosToday.length ? todosToday : openTodos.slice(0, 3), (i) => i.id, order);
 
   const mealOn = (slot: MealSlot) => {
     const plan = mealPlans.data?.find((p) => p.plan_date === day && p.slot === slot);
@@ -157,7 +170,6 @@ export default function TodayScreen() {
 
             <Segmented
               options={[
-                { value: 'family', label: 'Family' },
                 { value: 'mine', label: 'Mine' },
                 { value: 'all', label: 'All' },
               ]}
@@ -171,7 +183,7 @@ export default function TodayScreen() {
                 title={!data.routines.length ? 'No routines yet' : 'Nothing due right now'}
                 body={
                   data.routines.length
-                    ? 'Enjoy the free time, or check the other filters.'
+                    ? filter === 'mine' ? 'Enjoy the free time, or switch to All to see everyone.' : 'Enjoy the free time.'
                     : 'Create a category (like House cleanliness) and add routines to it.'
                 }
                 action={
@@ -182,18 +194,22 @@ export default function TodayScreen() {
               />
             ) : (
               <Card style={{ gap: 0, paddingVertical: 4 }}>
-                {due.map((r) => (
-                  <RoutineRow
-                    key={r.id}
-                    routine={r}
-                    category={data.categoryById.get(r.category_id)!}
-                    day={day}
-                    logs={data.logIndex.get(r.id)}
-                    streak={streak(r, data.logIndex, now)}
-                    userId={userId}
-                    memberById={memberById}
-                  />
-                ))}
+                <DraggableList
+                  items={routinesToday}
+                  keyOf={(r) => r.id}
+                  onReorder={reorder}
+                  renderItem={(r) => (
+                    <RoutineRow
+                      routine={r}
+                      category={data.categoryById.get(r.category_id)!}
+                      day={day}
+                      logs={data.logIndex.get(r.id)}
+                      streak={streak(r, data.logIndex, now)}
+                      userId={userId}
+                      memberById={memberById}
+                    />
+                  )}
+                />
               </Card>
             )}
 
@@ -201,17 +217,22 @@ export default function TodayScreen() {
               <View style={{ gap: 8 }}>
                 <SectionTitle>{todosToday.length ? '📝 To do today' : '📝 Next to-dos'}</SectionTitle>
                 <Card style={{ gap: 0, paddingVertical: 4 }}>
-                  {todos.map((item, i) => {
-                    const category = categoryById.get(item.project_id)!;
-                    return <TodoRow key={item.id} item={item} today={day} caption={`${category.icon} ${category.name}`} first={i === 0} />;
-                  })}
+                  <DraggableList
+                    items={todos}
+                    keyOf={(i) => i.id}
+                    onReorder={reorder}
+                    renderItem={(item, i) => {
+                      const category = categoryById.get(item.project_id)!;
+                      return <TodoRow item={item} today={day} caption={`${category.icon} ${category.name}`} first={i === 0} />;
+                    }}
+                  />
                 </Card>
               </View>
             )}
 
             {due.length > 0 && (
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-                Tap a routine to check it off
+                Tap to check off · hold and drag to reorder
               </ThemedText>
             )}
           </>

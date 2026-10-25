@@ -1,62 +1,30 @@
-// Generates the Dragon Boat logo — a family of three (two parents and a baby) on a dragon boat —
-// as SVG, plus every PNG the app needs.
+// Generates the FamilyWeek logo — two parents and a child standing on the week, with its seven
+// days below (today highlighted) — as SVG, plus every PNG the app needs.
 // Usage: node generate-logo.js <out-dir>   (needs @resvg/resvg-js)
 const fs = require('fs');
 const path = require('path');
 const { Resvg } = require('@resvg/resvg-js');
 
 const BRAND = { from: '#9BE8BF', to: '#34B97A' };
-const DECK = 600;
 
-const f = (n) => n.toFixed(1);
-const rad = (d) => (d * Math.PI) / 180;
-const seg = (a, b, w, color) =>
-  `<path d="M ${f(a[0])} ${f(a[1])} L ${f(b[0])} ${f(b[1])}" stroke="${color}" stroke-width="${f(w)}" stroke-linecap="round" fill="none"/>`;
-
-function boat(color, eyeId) {
-  const hull = `M 214 ${DECK} H 812 C 794 690 676 736 512 736 C 352 736 234 692 214 ${DECK} Z`;
-  const neck = 'M 246 650 C 204 566 208 474 270 428';
-  const head = 'M 340 414 C 344 374 310 356 276 372 L 180 418 L 286 444 C 318 448 338 440 340 414 Z';
-  const horn = 'M 310 376 C 328 342 352 322 382 314 C 372 342 360 366 348 392 Z';
-  const tail = `M 784 ${DECK + 34} C 842 ${DECK + 4} 862 548 840 496`;
-  // The eye is cut out of the head so the mark stays a single colour.
-  return `
-    <mask id="${eyeId}"><rect width="1024" height="1024" fill="#fff"/><circle cx="300" cy="410" r="13" fill="#000"/></mask>
-    <g mask="url(#${eyeId})">
-      <path d="${neck}" stroke="${color}" stroke-width="58" stroke-linecap="round" fill="none"/>
-      <path d="${head}" fill="${color}"/>
-      <path d="${horn}" fill="${color}" stroke="${color}" stroke-width="10" stroke-linejoin="round"/>
-    </g>
-    <path d="${tail}" stroke="${color}" stroke-width="46" stroke-linecap="round" fill="none"/>
-    <path d="${hull}" fill="${color}"/>`;
+/** A person: a round head over a rounded body that stands on the week line. */
+function person(cx, headY, r, width, top, color) {
+  const half = width / 2;
+  return (
+    `<circle cx="${cx}" cy="${headY}" r="${r}" fill="${color}"/>` +
+    `<path d="M ${cx - half} 690 V ${top + half} a ${half} ${half} 0 0 1 ${width} 0 V 690 Z" fill="${color}"/>`
+  );
 }
 
-/** A parent paddles; the baby sits between them. Both parents pull at the same angle and depth. */
-function person(x, color, baby = false) {
-  const dir = [-Math.sin(rad(8)), -Math.cos(rad(8))];
-  const seat = [x, DECK + 6];
-  const len = baby ? 69 : 132;
-  const shoulder = [seat[0] + dir[0] * len, seat[1] + dir[1] * len];
-  const r = baby ? 34 : 46;
-  const gap = r + (baby ? 22 : 32);
-  const head = [shoulder[0] + dir[0] * gap, shoulder[1] + dir[1] * gap];
-  const paddle = [];
-  if (!baby) {
-    const hand = [shoulder[0] + 10, shoulder[1] + 30];
-    const endY = DECK + 190;
-    const end = [hand[0] + (endY - hand[1]) / Math.tan(rad(62)), endY];
-    const deg = (Math.atan2(end[1] - hand[1], end[0] - hand[0]) * 180) / Math.PI;
-    paddle.push(
-      seg(hand, end, 20, color),
-      `<rect x="${f(end[0] - 19)}" y="${f(end[1] - 38)}" width="38" height="86" rx="19" fill="${color}" transform="rotate(${f(deg - 90)} ${f(end[0])} ${f(end[1])})"/>`,
-    );
-  }
-  return { paddle: paddle.join(''), body: seg(seat, shoulder, baby ? 50 : 70, color) + `<circle cx="${f(head[0])}" cy="${f(head[1])}" r="${r}" fill="${color}"/>` };
-}
-
-function mark(color = '#FFFFFF', id = 'm') {
-  const crew = [person(470, color), person(582, color, true), person(690, color)];
-  return `<g transform="translate(0 -24)">${crew.map((c) => c.paddle + c.body).join('')}${boat(color, `eye-${id}`)}${crew.map((c) => c.body).join('')}</g>`;
+function mark(color = '#FFFFFF') {
+  const family = [person(318, 318, 72, 168, 428, color), person(706, 318, 72, 168, 428, color), person(512, 470, 54, 124, 552, color)];
+  const line = `<rect x="160" y="690" width="704" height="34" rx="17" fill="${color}"/>`;
+  // The seven days of the week; the middle one (today) stands out.
+  const days = [0, 1, 2, 3, 4, 5, 6]
+    .map((d) => `<circle cx="${212 + d * 100}" cy="800" r="${d === 3 ? 26 : 20}" fill="${color}" opacity="${d === 3 ? 1 : 0.55}"/>`)
+    .join('');
+  // Centred vertically: the artwork spans y 246–826.
+  return `<g transform="translate(0 -24)">${family.join('')}${line}${days}</g>`;
 }
 
 const defs = `
@@ -80,7 +48,7 @@ const variants = {
   'android-icon-monochrome': { svg: svg(fit(0.64, mark())), size: 432 },
   // Splash: the white mark, shown on the brand colour.
   'splash-icon': { svg: svg(fit(0.95, mark())), size: 1024 },
-  favicon: { svg: svg(`<rect width="1024" height="1024" rx="220" fill="url(#bg)"/>${fit(1.02, mark())}`), size: 48 },
+  favicon: { svg: svg(`<rect width="1024" height="1024" rx="220" fill="url(#bg)"/>${fit(0.98, mark())}`), size: 48 },
   // In-app logo: the mark in brand green on a transparent background.
   'logo-mark': { svg: svg(fit(1.02, mark('#2FAE72'))), size: 512 },
   // Web app icons (copied to public/): iPhone home screen and the web manifest.

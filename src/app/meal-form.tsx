@@ -1,14 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
 
 import { deleteMeal, saveMeal, useMeals } from '@/api/meals';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Field, Label, Loading, Screen, styles } from '@/components/ui';
-import { useTheme } from '@/hooks/use-theme';
+import { Button, Field, Loading, Screen } from '@/components/ui';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
-import { MEAL_ICONS } from '@/lib/meal-ideas';
+import { mealIcon } from '@/lib/icons';
 import type { Meal } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -28,17 +26,15 @@ const parseIngredients = (text: string) =>
     .filter(Boolean);
 
 function MealFormBody({ existing }: { existing?: Meal }) {
-  const theme = useTheme();
   const { household } = useHousehold();
   const [name, setName] = useState(existing?.name ?? '');
-  const [icon, setIcon] = useState(existing?.icon ?? '🍽️');
   const [ingredients, setIngredients] = useState(existing?.ingredients.join('\n') ?? '');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await saveMeal({ id: existing?.id, household_id: household.id, name: name.trim(), icon, ingredients: parseIngredients(ingredients) });
+      await saveMeal({ id: existing?.id, household_id: household.id, name: name.trim(), icon: mealIcon(name.trim()), ingredients: parseIngredients(ingredients) });
       router.back();
     } catch (e) {
       showAlert('Could not save', errorMessage(e));
@@ -61,26 +57,6 @@ function MealFormBody({ existing }: { existing?: Meal }) {
       <Stack.Screen options={{ title: existing ? 'Edit meal' : 'New meal' }} />
       <Screen>
         <Field label="Meal" value={name} onChangeText={setName} placeholder="e.g. Tacos" autoFocus={!existing} />
-        <Label>Icon</Label>
-        <View style={styles.wrap}>
-          {MEAL_ICONS.map((i) => (
-            <Pressable
-              key={i}
-              onPress={() => setIcon(i)}
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 12,
-                borderWidth: 1.5,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: i === icon ? theme.tintSoft : 'transparent',
-                borderColor: i === icon ? theme.tint : 'transparent',
-              }}>
-              <ThemedText style={{ fontSize: 24, lineHeight: 32 }}>{i}</ThemedText>
-            </Pressable>
-          ))}
-        </View>
         <Field
           label="Ingredients (optional)"
           value={ingredients}

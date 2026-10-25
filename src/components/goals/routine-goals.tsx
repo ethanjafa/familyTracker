@@ -25,17 +25,17 @@ import { showAlert } from '@/lib/dialogs';
 import { describeSchedule, hasDayAssignees } from '@/lib/schedule';
 import { pct, scoreRoutine, scoreRoutines, streak } from '@/lib/scoring';
 import { type RoutineTemplate, suggestedCategories, suggestedRoutines } from '@/lib/suggestions';
-import type { Routine, RoutineCategory, Visibility } from '@/lib/types';
+import type { Routine, RoutineCategory } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
 
 /** Goals → Routines: categories with their routines, plus suggestions. */
-export function RoutineGoals({ visibility }: { visibility: Visibility }) {
+export function RoutineGoals() {
   const data = useRoutineData();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const categories = data.categories.filter((c) => c.visibility === visibility);
-  const addCategory = () => router.push({ pathname: '/category-form', params: { visibility } });
+  const categories = data.categories;
+  const addRoutine = () => router.push('/routine-form');
   const toggle = (id: string) =>
     setExpanded((s) => {
       const next = new Set(s);
@@ -51,14 +51,10 @@ export function RoutineGoals({ visibility }: { visibility: Visibility }) {
     <>
       {categories.length === 0 ? (
         <EmptyState
-          icon={visibility === 'personal' ? '🧘' : '🏠'}
-          title={`No ${visibility} categories yet`}
-          body={
-            visibility === 'personal'
-              ? 'Start from a suggestion below, or create your own.'
-              : 'Start from a suggestion below, or create your own. Family routines are shared with everyone at home.'
-          }
-          action={<Button title="Create my own" variant="secondary" onPress={addCategory} />}
+          icon="🏠"
+          title="No categories yet"
+          body="Start from a suggestion below, or create your own. Tag a routine 🔒 Personal to keep it to yourself."
+          action={<Button title="Create my own" variant="secondary" onPress={addRoutine} />}
         />
       ) : (
         <>
@@ -83,7 +79,7 @@ export function RoutineGoals({ visibility }: { visibility: Visibility }) {
         </>
       )}
 
-      <SuggestedCategories visibility={visibility} categories={categories} />
+      <SuggestedCategories categories={categories} />
     </>
   );
 }
@@ -173,9 +169,9 @@ function CategoryCard({
   );
 }
 
-function SuggestedCategories({ visibility, categories }: { visibility: Visibility; categories: RoutineCategory[] }) {
+function SuggestedCategories({ categories }: { categories: RoutineCategory[] }) {
   const theme = useTheme();
-  const suggestions = suggestedCategories(visibility, categories);
+  const suggestions = suggestedCategories(categories);
   if (!suggestions.length) return null;
   return (
     <View style={{ gap: Spacing.two }}>
@@ -237,7 +233,10 @@ function RoutineLine({ routine, logIndex }: { routine: Routine; logIndex: Return
       style={({ pressed }) => [local.line, { borderTopColor: theme.border, opacity: pressed ? 0.6 : 1 }]}>
       <View style={[local.dot, { backgroundColor: theme.tint }]} />
       <View style={{ flex: 1, gap: 2 }}>
-        <ThemedText style={{ fontWeight: 600 }}>{routine.name}</ThemedText>
+        <ThemedText style={{ fontWeight: 600 }}>
+          {routine.private_to ? '🔒 ' : ''}
+          {routine.name}
+        </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           {details.join(' · ')}
         </ThemedText>

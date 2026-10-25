@@ -2,7 +2,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { deleteRoutine, saveRoutine } from '@/api/routines';
+import { createCategory, deleteRoutine, saveRoutine } from '@/api/routines';
+import { CategoryPicker, NEW_CATEGORY } from '@/components/category-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Chip, ChipGroup, Field, Label, Loading, Screen, Segmented, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -45,36 +46,36 @@ function slotsOf(s: Schedule): Slot[] {
   return [];
 }
 
+/** Create or edit a routine in one page: its category is a field (pick one, or type a new one). */
 export default function RoutineForm() {
   const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
   const data = useRoutineData();
   if (data.isLoading) return <Loading />;
   const existing = data.routines.find((r) => r.id === params.id);
-  const category = data.categoryById.get(existing?.category_id ?? params.categoryId ?? '');
-  if (!category) return <Loading />;
-  return (
-    <RoutineFormBody
-      key={existing?.id ?? 'new'}
-      existing={existing}
-      categoryId={category.id}
-      isFamily={category.visibility === 'family'}
-      ideas={(query) => routineIdeas(category, data.routines.filter((r) => r.category_id === category.id), query)}
-    />
-  );
+  if (params.id && !existing) return <Loading />;
+  const initial = existing?.category_id ?? params.categoryId ?? (data.categories.length ? '' : NEW_CATEGORY);
+  return <RoutineFormBody key={existing?.id ?? 'new'} existing={existing} initialCategoryId={initial} data={data} />;
 }
 
 function RoutineFormBody({
   existing,
-  categoryId,
-  isFamily,
-  ideas,
+  initialCategoryId,
+  data,
 }: {
   existing: Routine | undefined;
-  categoryId: string;
-  isFamily: boolean;
-  ideas: (query: string) => RoutineTemplate[];
+  initialCategoryId: string;
+  data: ReturnType<typeof useRoutineData>;
 }) {
-  const { household, members } = useHousehold();
+  const { household, members, userId } = useHousehold();
+  const [categoryId, setCategoryId] = useState(initialCategoryId);
+  const [newCategory, setNewCategory] = useState('');
+  const category = data.categoryById.get(categoryId);
+  // Routines in the old personal categories are always personal.
+  const lockedPersonal = category?.visibility === 'personal';
+  const [personalTag, setPersonal] = useState(!!existing?.private_to);
+  const personal = lockedPersonal || personalTag;
+  // Personal routines are yours alone, so there's nobody else to share them with.
+  const isFamily = !personal;
   const [name, setName] = useState(existing?.name ?? '');
   const [schedule, setSchedule] = useState<Schedule>(existing?.schedule ?? { type: 'daily' });
   const [assignees, setAssignees] = useState<string[]>(existing?.assignee_ids ?? []);
@@ -116,27 +117,37 @@ function RoutineFormBody({
     setName(t.name);
     setSchedule(t.schedule);
   };
-  const nameIdeas = existing ? [] : ideas(name).filter((t) => t.name !== name).slice(0, 6);
+  const nameIdeas = existing
+    ? []
+    : routineIdeas(category, data.routines.filter((r) => r.category_id === categoryId), name)
+        .filter((t) => t.name !== name)
+        .slice(0, 6);
 
   const toggleAssignee = (id: string) => setAssignees((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
   const setOwner = (key: string, userId: string | null) => setDayAssignees((m) => ({ ...m, [key]: userId ?? undefined }));
 
+  const hasCategory = categoryId === NEW_CATEGORY ? !!newCategory.trim() : !!category;
   const valid =
-    name.trim() && (schedule.type !== 'weekdays' || schedule.days.length > 0) && (!pickedDays || pickedDays.length > 0);
+    name.trim() &&
+    hasCategory &&
+    (schedule.type !== 'weekdays' || schedule.days.length > 0) &&
+    (!pickedDays || pickedDays.length > 0);
 
   const save = async () => {
     setBusy(true);
     const keys = new Set(slots.map((s) => s.key));
     const rota = perDay ? Object.fromEntries(Object.entries(dayAssignees).filter(([k, id]) => id && keys.has(k))) : {};
     try {
+      const category_id = categoryId === NEW_CATEGORY ? await createCategory(household.id, newCategory.trim()) : categoryId;
       await saveRoutine({
         id: existing?.id,
         household_id: household.id,
-        category_id: categoryId,
+        category_id,
         name: name.trim(),
         schedule,
-        assignee_ids: perDay ? [...new Set(Object.values(rota) as string[])] : isFamily ? assignees : [],
-        // Only send the column once it exists (or is needed), so routines still save before the migration runs.
+        assignee_ids: personal ? [userId] : perDay ? [...new Set(Object.values(rota) as string[])] : assignees,
+        // Only send these columns once they exist (or are needed), so routines still save before the migrations run.
+        ...(personal || existing?.private_to !== undefined ? { private_to: personal ? userId : null } : {}),
         ...(perDay || existing?.day_assignees !== undefined ? { day_assignees: rota } : {}),
       });
       router.back();
@@ -178,6 +189,35 @@ function RoutineFormBody({
               ))}
             </View>
           </View>
+        )}
+
+        <CategoryPicker
+          categories={data.categories}
+          value={categoryId}
+          onChange={setCategoryId}
+          newName={newCategory}
+          onNewName={setNewCategory}
+          placeholder="e.g. House cleanliness"
+        />
+        <Label>Who can see it</Label>
+        {lockedPersonal ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            🔒 Personal. This category is only yours.
+          </ThemedText>
+        ) : (
+          <>
+            <Segmented
+              options={[
+                { value: 'family', label: '👨‍👩‍👧 Family' },
+                { value: 'personal', label: '🔒 Personal' },
+              ]}
+              value={personal ? 'personal' : 'family'}
+              onChange={(v) => setPersonal(v === 'personal')}
+            />
+            <ThemedText type="small" themeColor="textSecondary">
+              {personal ? 'Only you can see it, and you are its owner.' : 'Everyone in your household can see it.'}
+            </ThemedText>
+          </>
         )}
 
         <Label>How often</Label>

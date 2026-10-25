@@ -11,25 +11,25 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { prettyDay, today as todayKey } from '@/lib/dates';
 import { categoryStats, sortTodos } from '@/lib/projects';
-import type { Project, ProjectItem, Visibility } from '@/lib/types';
+import type { Project, ProjectItem } from '@/lib/types';
 
 /** Goals → To do: categories of to-dos, each with an owner and a target date. Categories start collapsed. */
-export function TodoGoals({ visibility }: { visibility: Visibility }) {
+export function TodoGoals() {
   const projects = useProjects();
   const items = useProjectItems();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (projects.isPending || items.isPending) return <Loading />;
-  const categories = (projects.data ?? []).filter((p) => p.visibility === visibility);
-  const addCategory = () => router.push({ pathname: '/todo-category-form', params: { visibility } });
+  const categories = projects.data ?? [];
+  const addTodo = () => router.push('/todo-form');
 
   if (!categories.length) {
     return (
       <EmptyState
         icon="📝"
-        title={`No ${visibility === 'family' ? 'family' : 'personal'} to-do lists yet`}
-        body="Make a category like Home repairs or Paperwork, then add to-dos with an owner and a target date."
-        action={<Button title="New category" onPress={addCategory} />}
+        title="No to-do lists yet"
+        body="Add a to-do and give it a category like Home repairs or Paperwork, an owner and a target date."
+        action={<Button title="New to-do" onPress={addTodo} />}
       />
     );
   }

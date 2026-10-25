@@ -4,13 +4,14 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TextInput,
   type TextInputProps,
   View,
   type ViewStyle,
 } from 'react-native';
+
+import { ScrollView } from 'react-native-gesture-handler';
 
 import { Calendar } from '@/components/calendar';
 import { ThemedText } from '@/components/themed-text';
@@ -162,7 +163,7 @@ export function DateField({ label, value, onChange }: { label: string; value: st
         onPress={() => setOpen((o) => !o)}
         style={({ pressed }) => [styles.input, styles.dateButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }]}>
         <ThemedText style={{ fontWeight: 500, color: value ? theme.text : theme.textSecondary }}>
-          📅 {value && isValidDay(value) ? format(fromDay(value), 'EEEE, d MMMM yyyy') : 'Pick a date (optional)'}
+          📅 {value && isValidDay(value) ? format(fromDay(value), 'EEEE, d MMMM yyyy') : 'Pick a date'}
         </ThemedText>
         <ThemedText themeColor="textSecondary">{open ? '▾' : '▸'}</ThemedText>
       </Pressable>

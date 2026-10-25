@@ -41,7 +41,7 @@ export default function SignInScreen() {
             <Image source={require('@/assets/images/logo-mark.png')} style={styles.logo} contentFit="contain" />
           </View>
           <View style={{ gap: Spacing.two, alignItems: 'center' }}>
-            <ThemedText type="title">Dragon Boat</ThemedText>
+            <ThemedText type="title">FamilyWeek</ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.tagline}>
               Plan and track your family&apos;s day to day
             </ThemedText>

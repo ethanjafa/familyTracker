@@ -74,9 +74,7 @@ export default function ScorecardScreen() {
 
   // To-do categories visible in this scope.
   const day = today();
-  const scopedCategories = (projects.data ?? []).filter((p) =>
-    scope === FAMILY ? p.visibility === 'family' : scope === userId || p.visibility === 'family',
-  );
+  const scopedCategories = projects.data ?? [];
   const categorySignals = scopedCategories.map((p) => ({ name: p.name, icon: p.icon, ...categoryStats(p, items.data ?? [], day) }));
   const todosDone = (items.data ?? []).filter(
     (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedCategories.some((p) => p.id === i.project_id),

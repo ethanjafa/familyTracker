@@ -27,7 +27,7 @@ export default function SettingsScreen() {
     try {
       const code = await createInvite(household.id);
       await Share.share({
-        message: `Join "${household.name}" on Dragon Boat: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
+        message: `Join "${household.name}" on FamilyWeek: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
       });
     } catch (e) {
       showAlert('Could not create invite', errorMessage(e));

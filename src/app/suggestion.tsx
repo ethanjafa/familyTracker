@@ -19,7 +19,7 @@ export default function SuggestionScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const template = getTemplate(key);
   const theme = useTheme();
-  const { household } = useHousehold();
+  const { household, userId } = useHousehold();
   const [picked, setPicked] = useState(() => new Set(template?.routines.map((r) => r.name)));
   const [busy, setBusy] = useState(false);
 
@@ -37,8 +37,9 @@ export default function SuggestionScreen() {
     setBusy(true);
     try {
       await addCategoryWithRoutines(
-        { household_id: household.id, name: template.name, icon: template.icon, visibility: template.visibility },
+        { household_id: household.id, name: template.name, icon: template.icon },
         template.routines.filter((r) => picked.has(r.name)),
+        template.visibility === 'personal' ? userId : null,
       );
       router.back();
     } catch (e) {
@@ -56,7 +57,7 @@ export default function SuggestionScreen() {
           <View style={{ flex: 1 }}>
             <ThemedText type="subtitle">{template.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {template.visibility === 'family' ? 'Shared with your family' : 'Just for you'} · tick what fits
+              {template.visibility === 'family' ? 'Shared with your family' : '🔒 Personal routines, only you see them'} · tick what fits
             </ThemedText>
           </View>
         </View>

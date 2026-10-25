@@ -57,6 +57,8 @@ export type Routine = {
   day_assignees?: Partial<Record<string, string>>;
   start_date: string;
   archived_at: string | null;
+  /** Personal: only this person can see it (and they own it). null/undefined = shared. */
+  private_to?: string | null;
   /** This routine's plan changes, by day (yyyy-MM-dd). Attached client-side from routine_plans. */
   plans?: Map<string, RoutinePlan>;
   /** Set when narrowed to one person's share (their score, their Today list). */
@@ -114,6 +116,8 @@ export type ProjectItem = {
   assignee_id: string | null;
   due_date: string | null;
   planned_date?: string | null;
+  /** Personal: only this person can see it (and they own it). null/undefined = shared. */
+  private_to?: string | null;
   cost: number | null;
   sort_order: number;
   completed_at: string | null;

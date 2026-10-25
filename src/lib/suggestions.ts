@@ -208,12 +208,12 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
 const normalize = (s: string) => s.toLowerCase().trim();
 
 /** The template an existing category most likely corresponds to (by icon or name keywords). */
-export function templateFor(category: Pick<RoutineCategory, 'name' | 'icon' | 'visibility'>): CategoryTemplate | undefined {
+export function templateFor(category: Pick<RoutineCategory, 'name' | 'icon'>): CategoryTemplate | undefined {
   const name = normalize(category.name);
   return (
     CATEGORY_TEMPLATES.find((t) => normalize(t.name) === name) ??
     CATEGORY_TEMPLATES.find((t) => t.keywords.some((k) => name.includes(k))) ??
-    CATEGORY_TEMPLATES.find((t) => t.icon === category.icon && t.visibility === category.visibility)
+    CATEGORY_TEMPLATES.find((t) => t.icon === category.icon)
   );
 }
 
@@ -225,10 +225,10 @@ export function suggestedRoutines(category: RoutineCategory, routines: Routine[]
   return template.routines.filter((t) => !have.has(normalize(t.name)));
 }
 
-/** Categories worth suggesting for a tab: templates none of the existing categories already cover. */
-export function suggestedCategories(visibility: Visibility, categories: RoutineCategory[]): CategoryTemplate[] {
+/** Categories worth suggesting: templates none of the existing categories already cover. */
+export function suggestedCategories(categories: RoutineCategory[]): CategoryTemplate[] {
   const covered = new Set(categories.map((c) => templateFor(c)?.key).filter(Boolean));
-  return CATEGORY_TEMPLATES.filter((t) => t.visibility === visibility && !covered.has(t.key));
+  return CATEGORY_TEMPLATES.filter((t) => !covered.has(t.key));
 }
 
 /** Suggestions for the routine-name field: matching templates first, then everything else that fits. */
@@ -236,7 +236,7 @@ export function routineIdeas(category: RoutineCategory | undefined, routines: Ro
   const q = normalize(query);
   const have = new Set(routines.map((x) => normalize(x.name)));
   const own = category ? (templateFor(category)?.routines ?? []) : [];
-  const rest = CATEGORY_TEMPLATES.filter((t) => !category || t.visibility === category.visibility).flatMap((t) => t.routines);
+  const rest = CATEGORY_TEMPLATES.flatMap((t) => t.routines);
   const seen = new Set<string>();
   return [...own, ...rest].filter((t) => {
     const key = normalize(t.name);

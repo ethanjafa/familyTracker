@@ -1,12 +1,12 @@
-# Dragon Boat: Family in Sync
+# FamilyWeek: plan the family week together
 
-<img src="assets/brand/logo-preview.png" width="128" alt="Dragon Boat logo">
+<img src="assets/brand/logo-preview.png" width="128" alt="FamilyWeek logo">
 
 Routines, to-dos, meals and scorecards for the whole family, built with Expo (React Native) and Supabase.
 
 - **Routines**: category → routine (e.g. *House cleanliness → Wash dishes*), every day, on certain days, N times a week or N times every 2 weeks, with owners. Optional default days can have a different owner per day (e.g. *Pick up baby*: Mon → one parent, Tue → the other), and the app suggests common categories and routines.
 - **To do**: categories of to-dos (e.g. *Home repairs → Fix the tap*), each with an owner and a target date.
-- **Personal vs family**: personal items are visible only to you (enforced by Row Level Security); family items are shared with everyone in the household.
+- **Personal items**: tag any routine or to-do 🔒 Personal and only you can see it (enforced by Row Level Security); it's automatically yours. Everything else is shared with the household.
 - **Scorecards**: weekly and monthly scores per person or for the family, an 8-week trend, per-category breakdown, streaks, who did what, and rule-based feedback.
 - **Plan**: one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and to-dos; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Need**, **Have** or **Backlog**, filled automatically from planned meals, with a **Store mode** for shopping.
 - **Live sync**: changes appear on every family member's phone through Supabase Realtime.
@@ -23,6 +23,7 @@ Routines, to-dos, meals and scorecards for the whole family, built with Expo (Re
    - [20261028000000_dinner_cooks.sql](supabase/migrations/20261028000000_dinner_cooks.sql): a cook for a day before its meal is chosen
    - [20261029000000_lunch.sql](supabase/migrations/20261029000000_lunch.sql): lunch as well as dinner in meal planning
    - [20261030000000_grocery_backlog.sql](supabase/migrations/20261030000000_grocery_backlog.sql): a backlog list in groceries
+   - [20261031000000_private_items.sql](supabase/migrations/20261031000000_private_items.sql): 🔒 personal routines and to-dos, hidden from the rest of the family
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
    - `tracker://**` (installed builds)

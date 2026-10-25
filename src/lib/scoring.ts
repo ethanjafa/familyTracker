@@ -131,6 +131,7 @@ export function routinesFor(
     const c = categories.get(r.category_id);
     if (!c) return [];
     if (c.visibility === 'personal') return c.owner_id === userId ? [r] : [];
+    if (r.private_to) return r.private_to === userId ? [r] : [];
     const involved =
       r.assignee_ids.includes(userId) ||
       isDayAssignee(r, userId) ||
@@ -140,7 +141,7 @@ export function routinesFor(
 }
 
 export function familyRoutines(routines: Routine[], categories: Map<string, RoutineCategory>) {
-  return routines.filter((r) => categories.get(r.category_id)?.visibility === 'family');
+  return routines.filter((r) => !r.private_to && categories.get(r.category_id)?.visibility === 'family');
 }
 
 export type Band = 'good' | 'ok' | 'bad' | 'none';

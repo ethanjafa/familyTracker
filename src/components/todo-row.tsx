@@ -37,7 +37,10 @@ export function TodoRow({ item, today, caption, first = false }: { item: Project
         {done && <ThemedText style={local.tick}>✓</ThemedText>}
       </Pressable>
       <View style={{ flex: 1 }}>
-        <ThemedText style={done ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}>{item.title}</ThemedText>
+        <ThemedText style={done ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}>
+          {item.private_to ? '🔒 ' : ''}
+          {item.title}
+        </ThemedText>
         {details.length > 0 && (
           <ThemedText type="small" style={{ color: overdue ? theme.danger : theme.textSecondary }}>
             {details.join(' · ')}

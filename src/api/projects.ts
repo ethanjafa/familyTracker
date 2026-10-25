@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { categoryIcon } from '@/lib/icons';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { ItemStatus, Project, ProjectItem } from '@/lib/types';
@@ -44,6 +45,18 @@ export async function saveProject(values: Partial<Project> & Pick<Project, 'hous
     : await supabase.from('projects').insert(values);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['projects'] });
+}
+
+/** Create a to-do category from the to-do form; its icon comes from the name. Returns its id. */
+export async function createTodoCategory(householdId: string, name: string) {
+  const { data, error } = await supabase
+    .from('projects')
+    .insert({ household_id: householdId, name, icon: categoryIcon(name), visibility: 'family' })
+    .select('id')
+    .single();
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['projects'] });
+  return data.id as string;
 }
 
 export async function deleteProject(id: string) {
