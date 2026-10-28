@@ -102,11 +102,14 @@ export default function ScorecardScreen() {
                 return (
                   <View key={m.user_id} style={{ gap: 4, paddingVertical: 4 }}>
                     <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                      <View style={[styles.row, { gap: 8 }]}>
+                      {/* Long names shorten with "…" so the numbers always fit on the card. */}
+                      <View style={[styles.row, { gap: 8, flex: 1 }]}>
                         <Avatar profile={m.profile} size={24} />
-                        <ThemedText>{m.profile.display_name}</ThemedText>
+                        <ThemedText numberOfLines={1} style={{ flex: 1 }}>
+                          {m.profile.display_name}
+                        </ThemedText>
                       </View>
-                      <ThemedText type="small" themeColor="textSecondary">
+                      <ThemedText type="small" themeColor="textSecondary" style={{ flexShrink: 0 }}>
                         {value} done · {share}% of all
                       </ThemedText>
                     </View>
@@ -216,7 +219,7 @@ export default function ScorecardScreen() {
               {categories.map(({ c, value }) => (
                 <View key={c.id} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                    <ThemedText>
+                    <ThemedText numberOfLines={1} style={{ flex: 1 }}>
                       {c.icon} {c.name}
                     </ThemedText>
                     <ScorePill value={value ?? null} />
@@ -238,7 +241,7 @@ export default function ScorecardScreen() {
               {categorySignals.map((c, i) => (
                 <View key={i} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                    <ThemedText>
+                    <ThemedText numberOfLines={1} style={{ flex: 1 }}>
                       {c.icon} {c.name}
                     </ThemedText>
                     <ThemedText type="smallBold">
