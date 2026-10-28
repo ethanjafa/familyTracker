@@ -55,6 +55,22 @@ export async function setRoutinePlan(routine: Routine, day: string, change: Plan
   await queryClient.invalidateQueries({ queryKey: key });
 }
 
+/**
+ * "Back to defaults" for a week: drop every routine change made for those days, and send to-dos
+ * that were moved onto a day back to their own date. Each goal's default days and owners apply again.
+ */
+export async function resetWeekToDefaults(householdId: string, from: string, to: string) {
+  await resetRoutinePlans(householdId, from, to);
+  const { error } = await supabase
+    .from('project_items')
+    .update({ planned_date: null })
+    .eq('household_id', householdId)
+    .gte('planned_date', from)
+    .lte('planned_date', to);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['project_items'] });
+}
+
 /** Undo every plan change in a date range (e.g. "reset this week"). */
 export async function resetRoutinePlans(householdId: string, from: string, to: string) {
   const { error } = await supabase

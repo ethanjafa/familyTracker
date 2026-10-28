@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Share, View } from 'react-native';
 
@@ -6,7 +6,7 @@ import { createInvite, removeMember, setPlanningDay, updateHousehold, updateProf
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, Dropdown, Field, Screen, SectionTitle, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
-import { signOut } from '@/lib/auth';
+import { deleteAccount, signOut } from '@/lib/auth';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import { PLANNING_DAY_NAMES, planningDayOf } from '@/lib/planning';
@@ -27,7 +27,7 @@ export default function SettingsScreen() {
     try {
       const code = await createInvite(household.id);
       await Share.share({
-        message: `Join "${household.name}" on FamilyWeek: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
+        message: `Join "${household.name}" on WhoseTurn: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
       });
     } catch (e) {
       showAlert('Could not create invite', errorMessage(e));
@@ -59,6 +59,20 @@ export default function SettingsScreen() {
           : errorMessage(e),
       ),
     );
+
+  const removeAccount = async () => {
+    const ok = await confirmAsync(
+      'Delete your account?',
+      'This can’t be undone. Your personal routines and to-dos are deleted. Shared family routines, to-dos and meals stay with your family, and if you are the last member, the household is deleted too.',
+      'Delete account',
+    );
+    if (!ok) return;
+    try {
+      await deleteAccount();
+    } catch (e) {
+      showAlert('Could not delete your account', errorMessage(e));
+    }
+  };
 
   const save = async () => {
     setBusy('save');
@@ -120,7 +134,14 @@ export default function SettingsScreen() {
           <Button title="Save" onPress={save} loading={busy === 'save'} disabled={!displayName.trim()} />
         </Card>
 
-        <Button title="Sign out" variant="danger" onPress={signOut} />
+        <SectionTitle>Account</SectionTitle>
+        <Button title="Sign out" variant="secondary" onPress={signOut} />
+        <Button title="Delete my account" variant="danger" onPress={removeAccount} />
+        <Pressable onPress={() => router.push('/privacy')} hitSlop={8} style={{ alignSelf: 'center' }}>
+          <ThemedText type="small" themeColor="textSecondary" style={{ textDecorationLine: 'underline' }}>
+            Privacy policy
+          </ThemedText>
+        </Pressable>
       </Screen>
     </>
   );

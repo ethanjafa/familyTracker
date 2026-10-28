@@ -1,4 +1,4 @@
-// Generates the FamilyWeek logo — two parents and a child standing on the week, with its seven
+// Generates the WhoseTurn logo — two parents and a child standing on the week, with its seven
 // days below (today highlighted) — as SVG, plus every PNG the app needs.
 // Usage: node generate-logo.js <out-dir>   (needs @resvg/resvg-js)
 const fs = require('fs');

@@ -245,9 +245,19 @@ function SlotEditor({
           <Label>
             Pick {slot.label.toLowerCase()} from the backlog
           </Label>
-          <View style={styles.wrap}>
-            {backlog.slice(0, 8).map((m) => (
-              <Chip key={m.id} label={`${m.icon} ${m.name}`} selected={false} onPress={() => onPick(m)} />
+          {/* The whole backlog, one meal per line, so long names are never cut off. */}
+          <View style={local.pickList}>
+            {backlog.map((m) => (
+              <Pressable
+                key={m.id}
+                onPress={() => onPick(m)}
+                style={({ pressed }) => [styles.row, local.pick, { opacity: pressed ? 0.6 : 1 }]}>
+                <IconTile icon={m.icon} size={32} />
+                <ThemedText style={{ flex: 1, fontWeight: 600 }}>{m.name}</ThemedText>
+                <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
+                  Pick
+                </ThemedText>
+              </Pressable>
             ))}
           </View>
         </>
@@ -265,4 +275,6 @@ const local = StyleSheet.create({
   slot: { gap: 8, paddingVertical: 3 },
   note: { borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 10 },
   move: { borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  pickList: { gap: 2 },
+  pick: { gap: 10, paddingVertical: 6 },
 });

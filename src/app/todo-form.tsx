@@ -128,7 +128,10 @@ function TodoFormBody({
         )}
 
         <View style={{ opacity: backlog ? 0.4 : 1 }} pointerEvents={backlog ? 'none' : 'auto'}>
-          <DateField label="Target date" value={backlog ? '' : targetDate} onChange={setTargetDate} />
+          <DateField label="Date" value={backlog ? '' : targetDate} onChange={setTargetDate} />
+          <ThemedText type="small" themeColor="textSecondary">
+            It shows up on Today on this day.
+          </ThemedText>
         </View>
         <Pressable onPress={() => setBacklog((b) => !b)} hitSlop={6} style={local.check}>
           <View style={[local.box, { borderColor: backlog ? theme.tint : theme.backgroundSelected, backgroundColor: backlog ? theme.tint : 'transparent' }]}>
@@ -137,7 +140,7 @@ function TodoFormBody({
           <View style={{ flex: 1 }}>
             <ThemedText style={{ fontWeight: 600 }}>Backlog</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              No target date yet. Pick one later.
+              No date yet. Pick one later.
             </ThemedText>
           </View>
         </Pressable>

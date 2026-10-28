@@ -1,6 +1,6 @@
 {
-  "name": "FamilyWeek",
-  "short_name": "FamilyWeek",
+  "name": "WhoseTurn",
+  "short_name": "WhoseTurn",
   "description": "Plan and track your family's day to day",
   "start_url": "/",
   "display": "standalone",

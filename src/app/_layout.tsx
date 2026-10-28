@@ -95,6 +95,9 @@ function RootNavigator() {
           <Stack.Screen name="store-mode" options={modal} />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
+        {/* Public pages the app store listings link to; readable without signing in. */}
+        <Stack.Screen name="privacy" options={{ headerShown: true }} />
+        <Stack.Screen name="delete-account" options={{ headerShown: true }} />
       </Stack>
     </ThemeProvider>
   );

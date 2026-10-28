@@ -1,6 +1,6 @@
-# FamilyWeek: plan the family week together
+# WhoseTurn: who does what in your family this week
 
-<img src="assets/brand/logo-preview.png" width="128" alt="FamilyWeek logo">
+<img src="assets/brand/logo-preview.png" width="128" alt="WhoseTurn logo">
 
 Routines, to-dos, meals and scorecards for the whole family, built with Expo (React Native) and Supabase.
 
@@ -24,9 +24,10 @@ Routines, to-dos, meals and scorecards for the whole family, built with Expo (Re
    - [20261029000000_lunch.sql](supabase/migrations/20261029000000_lunch.sql): lunch as well as dinner in meal planning
    - [20261030000000_grocery_backlog.sql](supabase/migrations/20261030000000_grocery_backlog.sql): a backlog list in groceries
    - [20261031000000_private_items.sql](supabase/migrations/20261031000000_private_items.sql): 🔒 personal routines and to-dos, hidden from the rest of the family
+   - [20261101000000_delete_account.sql](supabase/migrations/20261101000000_delete_account.sql): deleting your account from Settings (required by the app stores)
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
-   - `tracker://**` (installed builds)
+   - `whoseturn://**` (installed builds)
 4. Go to **Authentication → Sign In / Providers** and enable:
    - **Google**: in Google Cloud Console, create an OAuth client of type *Web application*. Add the callback URL that Supabase shows (`https://<ref>.supabase.co/auth/v1/callback`) as an authorized redirect URI. Then paste the client ID and secret into Supabase.
    - **Apple**: needs an Apple Developer account. Create a *Services ID* and a *Sign in with Apple* key, then follow Supabase's "Login with Apple" guide for the web/OAuth flow.
@@ -69,6 +70,15 @@ supabase/migrations/     database schema and security policies
 - Today only counts once it's logged, so an unfinished day never lowers your score.
 - Times-a-week and times-every-2-weeks targets (e.g. "3× a week") are prorated over the days that have passed.
 - Your personal score covers your personal routines plus family routines assigned to you. The family score covers all family routines.
+
+## Shipping updates
+
+- **Most changes** (screens, logic, text) go out over the air with EAS Update, with no store review. Installed apps pick them up the next time they open:
+  ```bash
+  npx eas-cli@latest update --channel production --environment production --message "What changed"
+  ```
+  Use `--channel preview --environment preview` for test builds.
+- **Native changes** (new native modules, icon, name, permissions, Expo upgrades) need a new store build: `npx eas-cli@latest build --profile production`, then `npx eas-cli@latest submit`. The runtime version uses Expo's *fingerprint* policy, so updates only reach builds they're compatible with.
 
 ## Commands
 

@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Avatar, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { prettyDay } from '@/lib/dates';
+import { movedFrom } from '@/lib/projects';
 import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import type { ProjectItem } from '@/lib/types';
@@ -16,10 +17,13 @@ export function TodoRow({ item, today, caption, first = false }: { item: Project
   const theme = useTheme();
   const { memberById } = useHousehold();
   const done = item.status === 'done';
-  const overdue = !done && !!item.due_date && item.due_date < today;
   const toggle = () =>
     setItemStatus(item, done ? 'todo' : 'done').catch((e) => showAlert('Could not update', errorMessage(e)));
-  const details = [caption, item.due_date && (item.due_date === today ? 'Target today' : `Target ${prettyDay(item.due_date)}`)].filter(Boolean);
+  // Unfinished to-dos move on to the next day by themselves; say where they came from.
+  const from = movedFrom(item, today);
+  const on = item.planned_date ?? item.due_date;
+  const when = from ? `Moved from ${prettyDay(from)}` : !on || on === today ? '' : prettyDay(on);
+  const details = [caption, when].filter(Boolean);
 
   return (
     <Pressable
@@ -42,7 +46,7 @@ export function TodoRow({ item, today, caption, first = false }: { item: Project
           {item.title}
         </ThemedText>
         {details.length > 0 && (
-          <ThemedText type="small" style={{ color: overdue ? theme.danger : theme.textSecondary }}>
+          <ThemedText type="small" themeColor="textSecondary">
             {details.join(' · ')}
           </ThemedText>
         )}

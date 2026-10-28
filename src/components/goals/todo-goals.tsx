@@ -75,7 +75,7 @@ function CategoryCard({
       ? 'All done 🎉'
       : [
           `${s.open.length} to do`,
-          s.overdue ? `${s.overdue} overdue` : s.next?.due_date ? `next ${prettyDay(s.next.due_date)}` : '',
+          s.overdue ? `${s.overdue} from earlier days` : s.next?.due_date ? `next ${prettyDay(s.next.due_date)}` : '',
         ]
           .filter(Boolean)
           .join(' · ');
@@ -88,7 +88,7 @@ function CategoryCard({
           <ThemedText type="heading" style={{ fontSize: 17 }}>
             {category.name}
           </ThemedText>
-          <ThemedText type="small" style={{ color: s.overdue ? theme.danger : theme.textSecondary }}>
+          <ThemedText type="small" themeColor="textSecondary">
             {summary}
           </ThemedText>
         </View>

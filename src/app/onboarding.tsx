@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { createHousehold, joinHousehold } from '@/api/household';
+import { createHousehold, joinHousehold, updateProfile } from '@/api/household';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button, Card, ChipGroup, Field, Label, Segmented } from '@/components/ui';
@@ -12,8 +12,13 @@ import { signOut } from '@/lib/auth';
 import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import { PLANNING_DAY_OPTIONS } from '@/lib/planning';
+import { useAuth } from '@/providers/auth-provider';
 
 export default function OnboardingScreen() {
+  const { session } = useAuth();
+  const user = session?.user;
+  // Google/Apple give us a name; email sign-ups only have their email, so ask.
+  const [myName, setMyName] = useState<string>(user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? '');
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [name, setName] = useState('Our family');
   const [code, setCode] = useState('');
@@ -23,6 +28,7 @@ export default function OnboardingScreen() {
   const submit = async () => {
     setBusy(true);
     try {
+      if (user && myName.trim()) await updateProfile(user.id, { display_name: myName.trim() });
       if (mode === 'create') await createHousehold(name.trim() || 'Our family', planningDay);
       else await joinHousehold(code);
     } catch (e) {
@@ -56,6 +62,7 @@ export default function OnboardingScreen() {
           />
 
           <Card>
+            <Field label="Your name" value={myName} onChangeText={setMyName} placeholder="e.g. Sara" autoComplete="name" />
             {mode === 'create' ? (
               <>
                 <Field label="Household name" value={name} onChangeText={setName} />
@@ -80,7 +87,7 @@ export default function OnboardingScreen() {
             title={mode === 'create' ? 'Create household' : 'Join household'}
             onPress={submit}
             loading={busy}
-            disabled={mode === 'join' && code.trim().length < 6}
+            disabled={!myName.trim() || (mode === 'join' && code.trim().length < 6)}
           />
           <Button title="Sign out" variant="danger" onPress={signOut} />
         </KeyboardAvoidingView>
