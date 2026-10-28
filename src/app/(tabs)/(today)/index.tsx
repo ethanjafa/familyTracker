@@ -18,6 +18,7 @@ import {
   Loading,
   ProgressBar,
   Screen,
+  SectionTitle,
   Segmented,
   styles,
   useElevation,
@@ -42,7 +43,7 @@ const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours()
 export default function TodayScreen() {
   const theme = useTheme();
   const glow = useElevation('brand');
-  const { household, members, userId, memberById } = useHousehold();
+  const { household, userId, memberById } = useHousehold();
   const firstName = memberById.get(userId)?.profile.display_name.trim().split(/\s+/)[0];
   const data = useRoutineData();
   const projects = useProjects();
@@ -109,26 +110,23 @@ export default function TodayScreen() {
   const toBuy = (groceries.data ?? []).filter((i) => i.status === 'need').length;
   const planned = isWeekPlanned(household, data.logIndex, now);
   const planningToday = getDay(now) === planningDayOf(household);
-  const openCount = (items.data ?? []).filter((i) => i.status !== 'done').length;
 
   const tiles: Tile[] = [
     {
       icon: '⛵',
-      title: 'Plan',
+      title: 'Plan the week',
       detail: planned ? 'Week planned ✓' : planningToday ? 'Plan the week today' : 'Plan next week',
       href: '/plan',
       alert: planningToday && !planned,
     },
     {
       icon: dinner?.icon ?? lunch?.icon ?? '🍽️',
-      title: 'Meals',
+      title: 'Plan meals',
       detail: dinner || lunch ? [lunch && `🥪 ${lunch.name}`, dinner && `🍽️ ${dinner.name}`].filter(Boolean).join(' · ') : 'Nothing planned',
       href: { pathname: '/meals', params: { week: toDay(weekStart(now)) } },
     },
-    { icon: '🛒', title: 'Groceries', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
-    { icon: '📝', title: 'To do', detail: `${openCount} open`, href: { pathname: '/goals', params: { section: 'todos' } } },
-    { icon: '📊', title: 'Scorecard', detail: `This week ${weekScore === null ? '—' : `${weekScore}%`}`, href: '/scorecard' },
-    { icon: '👨‍👩‍👧', title: 'Family', detail: `${members.length} member${members.length === 1 ? '' : 's'}`, href: '/settings' },
+    { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
+    { icon: '➕', title: 'Create', detail: 'New routine or to-do', href: '/create' },
   ];
 
   return (
@@ -172,6 +170,7 @@ export default function TodayScreen() {
 
             <Dashboard tiles={tiles} />
 
+            <SectionTitle>📋 Today&apos;s list</SectionTitle>
             <Segmented
               options={[
                 { value: 'mine', label: 'Mine' },

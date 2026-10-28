@@ -1,21 +1,20 @@
-import { addDays, format, subDays, subMonths, endOfMonth, isAfter } from 'date-fns';
+import { addDays, format, isAfter, subDays } from 'date-fns';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Card, Chip, Loading, ProgressBar, Screen, ScorePill, SectionTitle, Segmented, styles, useBandColor } from '@/components/ui';
+import { Avatar, Card, Chip, Loading, ProgressBar, Screen, ScorePill, SectionTitle, styles, useBandColor } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { fromDay, monthStart, today, weekStart } from '@/lib/dates';
+import { fromDay, today, weekStart } from '@/lib/dates';
 import { buildInsights } from '@/lib/insights';
 import { categoryStats } from '@/lib/projects';
 import { assigneesOn } from '@/lib/schedule';
-import { band, familyRoutines, pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
+import { band, familyRoutines, pct, routinesFor, scoreRoutines } from '@/lib/scoring';
 import { useHousehold } from '@/providers/household-provider';
 
-type Period = 'week' | 'month';
 const FAMILY = 'family';
 
 export default function ScorecardScreen() {
@@ -25,16 +24,16 @@ export default function ScorecardScreen() {
   const data = useRoutineData();
   const projects = useProjects();
   const items = useProjectItems();
-  const [period, setPeriod] = useState<Period>('week');
+  const period = 'week';
   const [scope, setScope] = useState<string>(FAMILY);
   const [explain, setExplain] = useState(false);
 
   if (data.isLoading || projects.isPending || items.isPending) return <Loading />;
 
   const now = new Date();
-  const from = period === 'week' ? weekStart(now) : monthStart(now);
-  const prevFrom = period === 'week' ? subDays(from, 7) : monthStart(subMonths(now, 1));
-  const prevTo = period === 'week' ? subDays(from, 1) : endOfMonth(prevFrom);
+  const from = weekStart(now);
+  const prevFrom = subDays(from, 7);
+  const prevTo = subDays(from, 1);
 
   const scoped =
     scope === FAMILY ? familyRoutines(data.routines, data.categoryById) : routinesFor(scope, data.routines, data.categoryById);
@@ -77,12 +76,6 @@ export default function ScorecardScreen() {
   }
   const totalContribution = [...contributions.values()].reduce((a, b) => a + b, 0);
 
-  const streaks = scoped
-    .map((r) => ({ r, s: streak(r, data.logIndex, now) }))
-    .filter((x) => x.s >= 2)
-    .sort((a, b) => b.s - a.s)
-    .slice(0, 5);
-
   // To-do categories visible in this scope.
   const day = today();
   const scopedCategories = projects.data ?? [];
@@ -99,14 +92,32 @@ export default function ScorecardScreen() {
     <>
       <Stack.Screen options={{ title: 'Scorecard' }} />
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
-        <Segmented
-          options={[
-            { value: 'week', label: 'This week' },
-            { value: 'month', label: 'This month' },
-          ]}
-          value={period}
-          onChange={setPeriod}
-        />
+        {totalContribution > 0 && (
+          <>
+            <SectionTitle>Who did the family routines this {period}</SectionTitle>
+            <Card>
+              {members.map((m) => {
+                const value = contributions.get(m.user_id) ?? 0;
+                const share = Math.round((100 * value) / totalContribution);
+                return (
+                  <View key={m.user_id} style={{ gap: 4, paddingVertical: 4 }}>
+                    <View style={[styles.row, { justifyContent: 'space-between' }]}>
+                      <View style={[styles.row, { gap: 8 }]}>
+                        <Avatar profile={m.profile} size={24} />
+                        <ThemedText>{m.profile.display_name}</ThemedText>
+                      </View>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {value} done · {share}% of all
+                      </ThemedText>
+                    </View>
+                    <ProgressBar value={share} color={memberColor(m.user_id)} />
+                  </View>
+                );
+              })}
+            </Card>
+          </>
+        )}
+
         <View style={styles.wrap}>
           <Chip label="👨‍👩‍👧 Family" selected={scope === FAMILY} onPress={() => setScope(FAMILY)} />
           {members.map((m) => (
@@ -170,25 +181,6 @@ export default function ScorecardScreen() {
           )}
         </Card>
 
-        <SectionTitle>Feedback</SectionTitle>
-        {insights.map((i) => (
-          <Card
-            key={i.id}
-            style={{
-              borderLeftWidth: 4,
-              borderLeftColor: i.tone === 'good' ? theme.success : i.tone === 'warn' ? theme.warning : theme.tint,
-            }}>
-            <ThemedText type="smallBold" style={{ fontSize: 16 }}>
-              {i.icon} {i.title}
-            </ThemedText>
-            {i.body && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {i.body}
-              </ThemedText>
-            )}
-          </Card>
-        ))}
-
         <SectionTitle>Last 8 weeks · % of routines done</SectionTitle>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 }}>
@@ -236,46 +228,6 @@ export default function ScorecardScreen() {
           </>
         )}
 
-        {streaks.length > 0 && (
-          <>
-            <SectionTitle>Streaks · done every time, in a row</SectionTitle>
-            <Card>
-              {streaks.map(({ r, s }) => (
-                <View key={r.id} style={[styles.row, { justifyContent: 'space-between' }]}>
-                  <ThemedText>{r.name}</ThemedText>
-                  <ThemedText type="smallBold">🔥 {s} in a row</ThemedText>
-                </View>
-              ))}
-            </Card>
-          </>
-        )}
-
-        {scope === FAMILY && totalContribution > 0 && (
-          <>
-            <SectionTitle>Who did the family routines this {period}</SectionTitle>
-            <Card>
-              {members.map((m) => {
-                const value = contributions.get(m.user_id) ?? 0;
-                const share = Math.round((100 * value) / totalContribution);
-                return (
-                  <View key={m.user_id} style={{ gap: 4, paddingVertical: 4 }}>
-                    <View style={[styles.row, { justifyContent: 'space-between' }]}>
-                      <View style={[styles.row, { gap: 8 }]}>
-                        <Avatar profile={m.profile} size={24} />
-                        <ThemedText>{m.profile.display_name}</ThemedText>
-                      </View>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {value} done · {share}% of all
-                      </ThemedText>
-                    </View>
-                    <ProgressBar value={share} color={memberColor(m.user_id)} />
-                  </View>
-                );
-              })}
-            </Card>
-          </>
-        )}
-
         {scopedCategories.length > 0 && (
           <>
             <SectionTitle>To do</SectionTitle>
@@ -299,6 +251,25 @@ export default function ScorecardScreen() {
             </Card>
           </>
         )}
+        <SectionTitle>Feedback</SectionTitle>
+        {insights.map((i) => (
+          <Card
+            key={i.id}
+            style={{
+              borderLeftWidth: 4,
+              borderLeftColor: i.tone === 'good' ? theme.success : i.tone === 'warn' ? theme.warning : theme.tint,
+            }}>
+            <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+              {i.icon} {i.title}
+            </ThemedText>
+            {i.body && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {i.body}
+              </ThemedText>
+            )}
+          </Card>
+        ))}
+
       </Screen>
     </>
   );

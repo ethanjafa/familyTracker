@@ -16,7 +16,7 @@ export type Tile = {
   alert?: boolean;
 };
 
-/** Shortcut tiles on Today, three to a row. */
+/** Shortcut tiles on Today, two to a row. */
 export function Dashboard({ tiles }: { tiles: Tile[] }) {
   return (
     <View style={local.grid}>
@@ -56,10 +56,10 @@ function DashboardTile({ tile }: { tile: Tile }) {
 const local = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   tile: {
-    // Three per row, with the grid's two gaps shared between them.
-    flexBasis: '31%',
+    // Two per row, with the grid's gap between them.
+    flexBasis: '47%',
     flexGrow: 1,
-    minHeight: 104,
+    minHeight: 92,
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 12,

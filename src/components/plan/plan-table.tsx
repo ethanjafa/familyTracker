@@ -6,15 +6,14 @@ import { type PlanChange, resetWeekToDefaults, setRoutinePlan } from '@/api/plan
 import { planItem, useProjectItems, useProjects } from '@/api/projects';
 import { LoadBar } from '@/components/plan/load-bar';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Loading, styles } from '@/components/ui';
-import { Radius } from '@/constants/theme';
+import { Avatar, Button, Card, Loading } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { prettyDay, toDay } from '@/lib/dates';
+import { toDay } from '@/lib/dates';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
-import { movedFrom, sortTodos, todoDay } from '@/lib/projects';
-import { assigneesOn, describeSchedule, periodStart, plannedOn, usualAssigneesOn, usualDueOn } from '@/lib/schedule';
+import { sortTodos, todoDay } from '@/lib/projects';
+import { assigneesOn, periodStart, plannedOn, usualAssigneesOn, usualDueOn } from '@/lib/schedule';
 import type { MealSlot, Member, Routine, RoutineCategory } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -24,9 +23,11 @@ type Cell = { kind: 'off' } | { kind: 'open' } | { kind: 'owner'; userId: string
 
 type Row = {
   key: string;
+  /** The category's icon (or 🥪 / 🍽️ for meals), shown before the name. */
   icon: string;
   title: string;
-  subtitle: string;
+  /** Owned days out of the days needed, e.g. "2/3", shown before the name (none for to-dos). */
+  count?: string;
   /** Not fully planned: a day still needs someone, or too few days have an owner. */
   needs: boolean;
   cells: Cell[];
@@ -105,7 +106,7 @@ export function PlanTable({ days }: { days: Date[] }) {
   const upcoming = (d: Date) => !isBefore(d, today);
   const keys = days.map(toDay);
 
-  // Routines: one section per category, in Goals order. Personal ones show with you as the owner.
+  // Routines, in category order (as in Goals). Personal ones show with you as the owner.
   const routineRow = (r: Routine, category: RoutineCategory): Row => {
     const personal = !!r.private_to || category.visibility === 'personal';
     const cells: Cell[] = days.map((d) => {
@@ -118,7 +119,7 @@ export function PlanTable({ days }: { days: Date[] }) {
       key: r.id,
       icon: category.icon,
       title: r.name,
-      subtitle: required ? `${describeSchedule(r.schedule)} · ${owned}/${required}` : describeSchedule(r.schedule),
+      count: required ? `${owned}/${required}` : undefined,
       // Planned once enough days have an owner for its frequency (3× a week → 3 owned days).
       needs: required ? owned < required : cells.some((c, i) => c.kind === 'open' && upcoming(days[i])),
       cells,
@@ -126,11 +127,9 @@ export function PlanTable({ days }: { days: Date[] }) {
       personal,
     };
   };
-  const routineSections = data.categories.map((c) => ({
-    key: c.id,
-    title: `${c.icon} ${c.name}`,
-    rows: data.routines.filter((r) => r.category_id === c.id).map((r) => routineRow(r, c)),
-  }));
+  const routineRows = data.categories.flatMap((c) =>
+    data.routines.filter((r) => r.category_id === c.id).map((r) => routineRow(r, c)),
+  );
 
   // Meals: who cooks lunch and dinner each day.
   const mealRow = (slot: MealSlot): Row => {
@@ -145,7 +144,7 @@ export function PlanTable({ days }: { days: Date[] }) {
       key: slot,
       icon: slot === 'lunch' ? '🥪' : '🍽️',
       title: slot === 'lunch' ? 'Make lunch' : 'Cook dinner',
-      subtitle: `${cells.filter((c) => c.kind === 'owner').length}/7 days`,
+      count: `${cells.filter((c) => c.kind === 'owner').length}/7`,
       needs: cells.some((c, i) => c.kind === 'open' && upcoming(days[i])),
       cells,
       onPress: (i) => {
@@ -170,11 +169,6 @@ export function PlanTable({ days }: { days: Date[] }) {
         key: item.id,
         icon: p.icon,
         title: item.title,
-        subtitle: movedFrom(item, todayKey)
-          ? `${p.name} · moved from ${prettyDay(movedFrom(item, todayKey)!)}`
-          : item.due_date
-            ? `${p.name} · ${prettyDay(item.due_date)}`
-            : `${p.name} · backlog`,
         // Not on a day this week: show the owner next to the name instead.
         owner: !day ? (item.assignee_id ?? undefined) : undefined,
         // Planned once it has an owner (its day comes from its date, or where it was moved).
@@ -196,7 +190,7 @@ export function PlanTable({ days }: { days: Date[] }) {
   }
 
   const sections = [
-    ...routineSections,
+    { key: 'routines', title: 'Routines', rows: routineRows },
     { key: 'meals', title: 'Meals', rows: [mealRow('lunch'), mealRow('dinner')] },
     { key: 'todos', title: 'To do', rows: todoRows },
   ].filter((s) => s.rows.length);
@@ -249,7 +243,6 @@ export function PlanTable({ days }: { days: Date[] }) {
           </View>
         ))}
       </Card>
-      <Legend />
       {changes > 0 && (
         <Button
           title={`↺ Back to defaults (${changes} change${changes === 1 ? '' : 's'})`}
@@ -262,84 +255,44 @@ export function PlanTable({ days }: { days: Date[] }) {
   );
 }
 
-/** What the boxes mean, drawn with the same symbols as the table. */
-function Legend() {
-  const theme = useTheme();
-  const { members, userId, memberById } = useHousehold();
-  const me = memberById.get(userId) ?? members[0];
-  const items = [
-    { symbol: <Avatar profile={me?.profile} size={22} />, text: 'Someone is on it that day' },
-    { symbol: <View style={[local.open, { borderColor: theme.warning }]} />, text: 'On that day, but nobody is assigned yet' },
-    { symbol: <View style={[local.off, { backgroundColor: theme.backgroundSelected }]} />, text: 'Not on that day' },
-    {
-      symbol: (
-        <View style={[local.ring, { borderColor: theme.tint }]}>
-          <Avatar profile={me?.profile} size={18} />
-        </View>
-      ),
-      text: 'Changed for this week only',
-    },
-  ];
-  return (
-    <Card style={{ gap: 8 }}>
-      <ThemedText type="smallBold">Tap any box to choose who&apos;s on it</ThemedText>
-      {items.map((i) => (
-        <View key={i.text} style={[styles.row, { gap: 10 }]}>
-          <View style={local.legendSymbol}>{i.symbol}</View>
-          <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
-            {i.text}
-          </ThemedText>
-        </View>
-      ))}
-    </Card>
-  );
-}
+const CELL = 26;
 
 function DayHeader({ days }: { days: Date[] }) {
   const theme = useTheme();
   const now = new Date();
   return (
-    <View style={local.cells}>
-      {days.map((d) => {
-        const color = isSameDay(d, now) ? theme.tint : theme.textSecondary;
-        return (
-          <View key={d.toISOString()} style={local.dayLabel}>
-            <ThemedText type="small" style={{ fontWeight: 700, color }}>
-              {format(d, 'EEE')}
-            </ThemedText>
-            <ThemedText type="small" style={{ fontSize: 11, lineHeight: 14, color }}>
-              {format(d, 'd')}
-            </ThemedText>
-          </View>
-        );
-      })}
+    <View style={local.row}>
+      <View style={{ flex: 1 }} />
+      <View style={local.cells}>
+        {days.map((d) => {
+          const color = isSameDay(d, now) ? theme.tint : theme.textSecondary;
+          return (
+            <View key={d.toISOString()} style={local.dayLabel}>
+              <ThemedText style={[local.dayText, { color, fontWeight: 700 }]}>{format(d, 'EEEEE')}</ThemedText>
+              <ThemedText style={[local.dayText, { color }]}>{format(d, 'd')}</ThemedText>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-/** One task: its full name on top (up to two lines), the week's seven boxes underneath. */
+/** One compact row: the name on the left (up to two lines), the week's seven boxes on the right. */
 function TableRow({ row, days, upcoming }: { row: Row; days: Date[]; upcoming: (d: Date) => boolean }) {
   const theme = useTheme();
   const { memberById } = useHousehold();
   const now = new Date();
   return (
-    <View
-      style={[
-        local.row,
-        { borderTopColor: theme.border },
-        row.needs && { backgroundColor: `${theme.warning}14` },
-      ]}>
-      <View style={local.titleLine}>
-        <ThemedText numberOfLines={2} style={{ fontWeight: 600, flex: 1 }}>
-          {row.needs ? '⚠️ ' : ''}
+    <View style={[local.row, { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+      <View style={local.name}>
+        {/* The whole name, wrapping onto as many lines as it needs; amber while it still needs someone. */}
+        <ThemedText type="small" style={{ flex: 1, fontWeight: 600, lineHeight: 17, color: row.needs ? theme.warning : theme.text }}>
           {row.personal ? '🔒 ' : ''}
           {row.title}
         </ThemedText>
-        {row.owner && <Avatar profile={memberById.get(row.owner)?.profile} size={22} />}
+        {row.owner && <Avatar profile={memberById.get(row.owner)?.profile} size={18} />}
       </View>
-      <ThemedText type="small" numberOfLines={1} themeColor="textSecondary">
-        {row.icon} {row.subtitle}
-      </ThemedText>
       <View style={local.cells}>
         {row.cells.map((cell, i) => (
           <Pressable
@@ -349,20 +302,12 @@ function TableRow({ row, days, upcoming }: { row: Row; days: Date[]; upcoming: (
             style={({ pressed }) => [
               local.cell,
               {
-                backgroundColor: theme.backgroundElement,
+                backgroundColor: cell.kind === 'open' && upcoming(days[i]) ? `${theme.warning}2E` : theme.backgroundElement,
                 borderColor: isSameDay(days[i], now) ? theme.tint : 'transparent',
                 opacity: pressed ? 0.5 : upcoming(days[i]) ? 1 : 0.45,
               },
             ]}>
-            {cell.kind === 'off' ? (
-              <View style={[local.off, { backgroundColor: theme.backgroundSelected }]} />
-            ) : cell.kind === 'open' ? (
-              <View style={[local.open, { borderColor: row.needs && upcoming(days[i]) ? theme.warning : theme.textSecondary }]} />
-            ) : (
-              <View style={cell.changed ? [local.ring, { borderColor: theme.tint }] : undefined}>
-                <Avatar profile={memberById.get(cell.userId)?.profile} size={24} />
-              </View>
-            )}
+            {cell.kind === 'owner' && <Avatar profile={memberById.get(cell.userId)?.profile} size={22} />}
           </Pressable>
         ))}
       </View>
@@ -371,14 +316,11 @@ function TableRow({ row, days, upcoming }: { row: Row; days: Date[]; upcoming: (
 }
 
 const local = StyleSheet.create({
-  row: { gap: 4, paddingVertical: 10, paddingHorizontal: 4, borderTopWidth: StyleSheet.hairlineWidth, borderRadius: Radius.sm },
-  titleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cells: { flexDirection: 'row', gap: 4, marginTop: 4 },
-  dayLabel: { flex: 1, alignItems: 'center' },
-  cell: { flex: 1, height: 38, borderRadius: 10, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  section: { fontWeight: 700, fontSize: 11, letterSpacing: 0.6, paddingTop: 14, paddingBottom: 2, paddingHorizontal: 4 },
-  off: { width: 6, height: 6, borderRadius: 3 },
-  open: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderStyle: 'dashed' },
-  ring: { borderWidth: 2, borderRadius: Radius.pill, padding: 1 },
-  legendSymbol: { width: 32, alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 5 },
+  name: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  cells: { flexDirection: 'row', gap: 2 },
+  dayLabel: { width: CELL, alignItems: 'center' },
+  dayText: { fontSize: 11, lineHeight: 13 },
+  cell: { width: CELL, height: CELL, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  section: { fontWeight: 700, fontSize: 11, letterSpacing: 0.6, paddingTop: 12, paddingBottom: 2 },
 });

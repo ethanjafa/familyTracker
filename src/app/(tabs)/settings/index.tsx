@@ -93,6 +93,13 @@ export default function SettingsScreen() {
     <>
       <Stack.Screen options={{ title: 'Settings' }} />
       <Screen>
+        <SectionTitle>Profile</SectionTitle>
+        <Card style={{ gap: 16 }}>
+          <Field label="Household name" value={householdName} onChangeText={setHouseholdName} />
+          <Field label="Your name" value={displayName} onChangeText={setDisplayName} />
+          <Button title="Save" onPress={save} loading={busy === 'save'} disabled={!displayName.trim()} />
+        </Card>
+
         <SectionTitle>Family</SectionTitle>
         <Card>
           {members.map((m) => (
@@ -125,13 +132,6 @@ export default function SettingsScreen() {
           <ThemedText type="small" themeColor="textSecondary">
             That day, everyone gets a ⛵ Plan the week together task on Today.
           </ThemedText>
-        </Card>
-
-        <SectionTitle>Profile</SectionTitle>
-        <Card style={{ gap: 16 }}>
-          <Field label="Household name" value={householdName} onChangeText={setHouseholdName} />
-          <Field label="Your name" value={displayName} onChangeText={setDisplayName} />
-          <Button title="Save" onPress={save} loading={busy === 'save'} disabled={!displayName.trim()} />
         </Card>
 
         <SectionTitle>Account</SectionTitle>
