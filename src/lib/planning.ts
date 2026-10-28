@@ -15,7 +15,12 @@ export const PLANNING_DAY_OPTIONS = [
   { value: 0, label: 'Sun' },
 ];
 
-export const planningDayOf = (h: Household) => h.planning_day ?? 0;
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** The same days with full names, for the Settings dropdown. */
+export const PLANNING_DAY_NAMES = PLANNING_DAY_OPTIONS.map((o) => ({ value: o.value, label: DAY_NAMES[o.value] }));
+
+export const planningDayOf =(h: Household) => h.planning_day ?? 0;
 
 /** The most recent planning day, today included: the current planning cycle. */
 export const lastPlanningDay = (h: Household, now = new Date()) =>

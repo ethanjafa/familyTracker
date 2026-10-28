@@ -1,10 +1,9 @@
-import { addDays } from 'date-fns';
-import type { PropsWithChildren, ReactNode } from 'react';
+import { addDays, format } from 'date-fns';
+import { type PropsWithChildren, type ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TextInput,
   type TextInputProps,
@@ -12,11 +11,14 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { ScrollView } from 'react-native-gesture-handler';
+
+import { Calendar } from '@/components/calendar';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, FontFamilies, IconChoices, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
-import { toDay } from '@/lib/dates';
+import { fromDay, toDay } from '@/lib/dates';
 import { type Band, band } from '@/lib/scoring';
 import type { Profile } from '@/lib/types';
 import { useHouseholdState } from '@/providers/household-provider';
@@ -141,28 +143,40 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const isValidDay = (s: string) => s === '' || (DATE_RE.test(s) && !isNaN(Date.parse(s)));
 
-/** A yyyy-MM-dd field with quick picks. Empty string means no date. */
+/** A date (yyyy-MM-dd) picked from a calendar that opens under the field. Empty string means no date. */
 export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const theme = useTheme();
+  const [open, setOpen] = useState(false);
   const quick = [
     { label: 'Today', days: 0 },
-    { label: '+1 week', days: 7 },
-    { label: '+1 month', days: 30 },
-    { label: '+3 months', days: 91 },
+    { label: 'Tomorrow', days: 1 },
+    { label: 'In a week', days: 7 },
   ];
+  const pick = (day: string) => {
+    onChange(day);
+    setOpen(false);
+  };
   return (
     <View style={{ gap: Spacing.two }}>
-      <Field label={label} value={value} onChangeText={onChange} placeholder="YYYY-MM-DD (optional)" autoCapitalize="none" />
-      {!isValidDay(value) && (
-        <ThemedText type="small" style={{ color: theme.danger }}>
-          Use the format 2026-12-31
+      <Label>{label}</Label>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        style={({ pressed }) => [styles.input, styles.dateButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }]}>
+        <ThemedText style={{ fontWeight: 500, color: value ? theme.text : theme.textSecondary }}>
+          📅 {value && isValidDay(value) ? format(fromDay(value), 'EEEE, d MMMM yyyy') : 'Pick a date'}
         </ThemedText>
+        <ThemedText themeColor="textSecondary">{open ? '▾' : '▸'}</ThemedText>
+      </Pressable>
+      {open && (
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <Calendar value={value} onChange={pick} />
+        </View>
       )}
       <View style={styles.wrap}>
         {quick.map((q) => (
-          <Chip key={q.label} label={q.label} selected={false} onPress={() => onChange(toDay(addDays(new Date(), q.days)))} />
+          <Chip key={q.label} label={q.label} selected={false} onPress={() => pick(toDay(addDays(new Date(), q.days)))} />
         ))}
-        {value !== '' && <Chip label="Clear" selected={false} onPress={() => onChange('')} />}
+        {value !== '' && <Chip label="Clear" selected={false} onPress={() => pick('')} />}
       </View>
     </View>
   );
@@ -210,6 +224,54 @@ export function ChipGroup<T extends string | number>({
       {options.map((o) => (
         <Chip key={String(o.value)} label={o.label} selected={o.value === value} onPress={() => onChange(o.value)} />
       ))}
+    </View>
+  );
+}
+
+/** A field that opens a list of options under it. Works the same on iOS, Android and web. */
+export function Dropdown<T extends string | number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.value === value);
+  return (
+    <View style={{ gap: Spacing.two }}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        style={({ pressed }) => [styles.input, styles.dateButton, { backgroundColor: theme.backgroundElement, opacity: pressed ? 0.8 : 1 }]}>
+        <ThemedText style={{ fontWeight: 600 }}>{current?.label ?? 'Choose…'}</ThemedText>
+        <ThemedText themeColor="textSecondary">{open ? '▴' : '▾'}</ThemedText>
+      </Pressable>
+      {open && (
+        <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border, gap: 0, paddingVertical: 4 }]}>
+          {options.map((o, i) => {
+            const selected = o.value === value;
+            return (
+              <Pressable
+                key={String(o.value)}
+                onPress={() => {
+                  setOpen(false);
+                  if (!selected) onChange(o.value);
+                }}
+                style={({ pressed }) => [
+                  styles.row,
+                  { justifyContent: 'space-between', paddingVertical: 12, opacity: pressed ? 0.6 : 1 },
+                  i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth },
+                ]}>
+                <ThemedText style={{ fontWeight: selected ? 700 : 500, color: selected ? theme.tint : theme.text }}>{o.label}</ThemedText>
+                {selected && <ThemedText themeColor="tint">✓</ThemedText>}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 }
@@ -406,6 +468,11 @@ export const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: 14,
     fontSize: 16,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   chip: {
     borderRadius: Radius.pill,

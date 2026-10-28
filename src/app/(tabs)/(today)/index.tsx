@@ -1,4 +1,4 @@
-import { addDays, format, getDay } from 'date-fns';
+import { format, getDay } from 'date-fns';
 import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -7,7 +7,9 @@ import { useGroceries } from '@/api/groceries';
 import { useMealPlans, useMeals } from '@/api/meals';
 import { useProjectItems, useProjects } from '@/api/projects';
 import { Dashboard, type Tile } from '@/components/dashboard';
+import { DraggableList } from '@/components/draggable-list';
 import { RoutineRow } from '@/components/routine-row';
+import { TodoRow } from '@/components/todo-row';
 import { ThemedText } from '@/components/themed-text';
 import {
   Button,
@@ -16,7 +18,6 @@ import {
   Loading,
   ProgressBar,
   Screen,
-  SectionTitle,
   Segmented,
   styles,
   useElevation,
@@ -24,22 +25,17 @@ import {
 import { Radius, Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { prettyDay, toDay, weekStart } from '@/lib/dates';
+import { toDay, weekStart } from '@/lib/dates';
 import { assigneesOn, isDueToday } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
+import { sortTodos, todoDay } from '@/lib/projects';
 import { pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
-import type { MealSlot, TimeOfDay } from '@/lib/types';
+import { applyOrder, loadOrder, mergeOrder, saveOrder } from '@/lib/today-order';
+import type { MealSlot, ProjectItem, Routine } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
-const SECTIONS: { key: TimeOfDay; label: string }[] = [
-  { key: 'morning', label: '🌅 Morning' },
-  { key: 'day', label: '☀️ Day' },
-  { key: 'evening', label: '🌙 Evening' },
-  { key: 'anytime', label: '🕑 Anytime' },
-];
-
-type Filter = 'mine' | 'family' | 'all';
-type When = 'today' | 'tomorrow';
+/** Mine = my routines and to-dos (plus unassigned family ones); All = everyone's. */
+type Filter = 'mine' | 'all';
 
 const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours() < 18 ? 'Good afternoon' : 'Good evening');
 
@@ -54,44 +50,55 @@ export default function TodayScreen() {
   const meals = useMeals();
   const mealPlans = useMealPlans();
   const groceries = useGroceries();
-  const [filter, setFilter] = useState<Filter>('family');
-  const [when, setWhen] = useState<When>('today');
+  const [filter, setFilter] = useState<Filter>('mine');
+  // Your own order of routines and to-dos, set by holding and dragging.
+  const [order, setOrder] = useState(() => loadOrder(userId));
+  const reorder = (keys: string[]) => {
+    const next = mergeOrder(keys, order);
+    setOrder(next);
+    saveOrder(userId, next);
+  };
 
   const now = new Date();
-  const isTomorrow = when === 'tomorrow';
-  const target = isTomorrow ? addDays(now, 1) : now;
-  const day = toDay(target);
+  const day = toDay(now);
 
   const due = useMemo(() => {
     // A person's view of a routine is narrowed to their own days when the family takes turns.
     const mine = new Map(routinesFor(userId, data.routines, data.categoryById).map((r) => [r.id, r]));
     return data.routines.filter((r) => {
       const category = data.categoryById.get(r.category_id);
-      if (!category || !isDueToday(r, data.logIndex.get(r.id), target)) return false;
+      if (!category || !isDueToday(r, data.logIndex.get(r.id), now)) return false;
       if (filter === 'mine') {
         const own = mine.get(r.id);
-        if (own) return isDueToday(own, data.logIndex.get(r.id), target);
-        return category.visibility === 'family' && assigneesOn(r, target).length === 0;
+        if (own) return isDueToday(own, data.logIndex.get(r.id), now);
+        return category.visibility === 'family' && assigneesOn(r, now).length === 0;
       }
-      if (filter === 'family') return category.visibility === 'family';
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filter, userId, day]);
-
-  const doneCount = due.filter((r) => data.logIndex.get(r.id)?.has(day)).length;
   const weekScore = pct(scoreRoutines(routinesFor(userId, data.routines, data.categoryById), data.logIndex, weekStart(now), now));
 
-  // Steps planned for this day come first; otherwise the next few open steps.
-  const activeProjects = new Map((projects.data ?? []).filter((p) => p.status === 'active').map((p) => [p.id, p]));
-  const openSteps = (items.data ?? []).filter(
-    (i) => i.status !== 'done' && activeProjects.has(i.project_id) && (!i.assignee_id || i.assignee_id === userId),
+  // To-dos for today: today is their day (unfinished ones move on from earlier days). Ones finished today stay, ticked.
+  const categoryById = new Map((projects.data ?? []).map((p) => [p.id, p]));
+  const todosToday = sortTodos(
+    (items.data ?? []).filter(
+      (i) =>
+        categoryById.has(i.project_id) &&
+        (filter === 'all' || !i.assignee_id || i.assignee_id === userId) &&
+        (i.status !== 'done' ? todoDay(i, day) === day : !!i.completed_at && toDay(new Date(i.completed_at)) === day),
+    ),
   );
-  const plannedSteps = openSteps.filter((i) => i.planned_date === day);
-  const stepsPlanned = plannedSteps.length > 0;
-  const nextActions = (
-    stepsPlanned ? plannedSteps : openSteps.sort((a, b) => (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999')).slice(0, 3)
-  ).map((i) => ({ item: i, project: activeProjects.get(i.project_id)! }));
+
+  // One list for the day: routines and to-dos together, in your own order.
+  type Task = { key: string; routine: Routine } | { key: string; todo: ProjectItem };
+  const tasks = applyOrder<Task>(
+    [...due.map((r) => ({ key: r.id, routine: r })), ...todosToday.map((i) => ({ key: i.id, todo: i }))],
+    (t) => t.key,
+    order,
+  );
+  const doneCount =
+    due.filter((r) => data.logIndex.get(r.id)?.has(day)).length + todosToday.filter((i) => i.status === 'done').length;
 
   const mealOn = (slot: MealSlot) => {
     const plan = mealPlans.data?.find((p) => p.plan_date === day && p.slot === slot);
@@ -102,7 +109,7 @@ export default function TodayScreen() {
   const toBuy = (groceries.data ?? []).filter((i) => i.status === 'need').length;
   const planned = isWeekPlanned(household, data.logIndex, now);
   const planningToday = getDay(now) === planningDayOf(household);
-  const activeCount = (projects.data ?? []).filter((p) => p.status === 'active').length;
+  const openCount = (items.data ?? []).filter((i) => i.status !== 'done').length;
 
   const tiles: Tile[] = [
     {
@@ -119,75 +126,54 @@ export default function TodayScreen() {
       href: { pathname: '/meals', params: { week: toDay(weekStart(now)) } },
     },
     { icon: '🛒', title: 'Groceries', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
-    { icon: '🎯', title: 'Goals', detail: `${activeCount} active project${activeCount === 1 ? '' : 's'}`, href: '/goals' },
+    { icon: '📝', title: 'To do', detail: `${openCount} open`, href: { pathname: '/goals', params: { section: 'todos' } } },
     { icon: '📊', title: 'Scorecard', detail: `This week ${weekScore === null ? '—' : `${weekScore}%`}`, href: '/scorecard' },
     { icon: '👨‍👩‍👧', title: 'Family', detail: `${members.length} member${members.length === 1 ? '' : 's'}`, href: '/settings' },
   ];
 
   return (
     <>
-      <Stack.Screen options={{ title: format(target, 'EEEE, d MMM') }} />
+      <Stack.Screen options={{ title: format(now, 'EEEE, d MMM') }} />
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
-        <Segmented
-          options={[
-            { value: 'today', label: 'Today' },
-            { value: 'tomorrow', label: 'Tomorrow' },
-          ]}
-          value={when}
-          onChange={setWhen}
-        />
         {data.isLoading ? (
           <Loading />
         ) : (
           <>
             <View style={[hero.card, { backgroundColor: theme.tint }, glow]}>
               <ThemedText type="small" style={hero.muted}>
-                {isTomorrow ? 'Coming up tomorrow' : `${greeting(now)}${firstName ? `, ${firstName}` : ''}`}
+                {greeting(now)}
+                {firstName ? `, ${firstName}` : ''}
               </ThemedText>
               <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'flex-end' }]}>
-                {isTomorrow ? (
-                  <View>
-                    <ThemedText type="title" style={hero.text}>
-                      {due.length}
+                <View>
+                  <ThemedText type="title" style={hero.text}>
+                    {doneCount}
+                    <ThemedText type="heading" style={hero.muted}>
+                      {' '}
+                      / {tasks.length}
                     </ThemedText>
-                    <ThemedText type="small" style={hero.muted}>
-                      {due.length === 1 ? 'routine planned' : 'routines planned'}
-                    </ThemedText>
-                  </View>
-                ) : (
-                  <View>
-                    <ThemedText type="title" style={hero.text}>
-                      {doneCount}
-                      <ThemedText type="heading" style={hero.muted}>
-                        {' '}
-                        / {due.length}
-                      </ThemedText>
-                    </ThemedText>
-                    <ThemedText type="small" style={hero.muted}>
-                      {due.length && doneCount === due.length ? 'All done today 🎉' : 'done today'}
-                    </ThemedText>
-                  </View>
-                )}
+                  </ThemedText>
+                  <ThemedText type="small" style={hero.muted}>
+                    {tasks.length && doneCount === tasks.length ? 'All done today 🎉' : 'done today'}
+                  </ThemedText>
+                </View>
                 <View style={hero.badge}>
                   <ThemedText type="smallBold" style={hero.text}>
                     Week {weekScore === null ? '—' : `${weekScore}%`}
                   </ThemedText>
                 </View>
               </View>
-              {!isTomorrow && (
-                <ProgressBar
-                  value={due.length ? (100 * doneCount) / due.length : 0}
-                  color="#FFFFFF"
-                  track="rgba(255,255,255,0.28)"
-                />
-              )}
+              <ProgressBar
+                value={tasks.length ? (100 * doneCount) / tasks.length : 0}
+                color="#FFFFFF"
+                track="rgba(255,255,255,0.28)"
+              />
             </View>
 
             <Dashboard tiles={tiles} />
 
             <Segmented
               options={[
-                { value: 'family', label: 'Family' },
                 { value: 'mine', label: 'Mine' },
                 { value: 'all', label: 'All' },
               ]}
@@ -195,71 +181,50 @@ export default function TodayScreen() {
               onChange={setFilter}
             />
 
-            {due.length === 0 ? (
+            {tasks.length === 0 ? (
               <EmptyState
                 icon="🌱"
-                title={!data.routines.length ? 'No routines yet' : isTomorrow ? 'Nothing planned for tomorrow' : 'Nothing due right now'}
+                title={!data.routines.length && !(items.data ?? []).length ? 'Nothing here yet' : 'Nothing due right now'}
                 body={
-                  data.routines.length
-                    ? 'Enjoy the free time, or check the other filters.'
-                    : 'Create a category (like House cleanliness) and add routines to it.'
+                  data.routines.length || (items.data ?? []).length
+                    ? filter === 'mine' ? 'Enjoy the free time, or switch to All to see everyone.' : 'Enjoy the free time.'
+                    : 'Add routines and to-dos in Goals.'
                 }
                 action={
-                  !data.routines.length && (
-                    <Button title="Add routines" onPress={() => router.navigate('/goals')} />
-                  )
+                  !data.routines.length &&
+                  !(items.data ?? []).length && <Button title="Go to Goals" onPress={() => router.navigate('/goals')} />
                 }
               />
             ) : (
-              SECTIONS.map(({ key, label }) => {
-                const list = due.filter((r) => r.time_of_day === key);
-                if (!list.length) return null;
-                return (
-                  <View key={key} style={{ gap: 8 }}>
-                    <SectionTitle>{label}</SectionTitle>
-                    <Card style={{ gap: 0, paddingVertical: 4 }}>
-                      {list.map((r) => (
+              <Card style={{ gap: 0, paddingVertical: 4 }}>
+                <DraggableList
+                  items={tasks}
+                  keyOf={(t) => t.key}
+                  onReorder={reorder}
+                  renderItem={(t) => {
+                    if ('routine' in t) {
+                      return (
                         <RoutineRow
-                          key={r.id}
-                          routine={r}
-                          category={data.categoryById.get(r.category_id)!}
+                          routine={t.routine}
+                          category={data.categoryById.get(t.routine.category_id)!}
                           day={day}
-                          logs={data.logIndex.get(r.id)}
-                          streak={streak(r, data.logIndex, now)}
+                          logs={data.logIndex.get(t.routine.id)}
+                          streak={streak(t.routine, data.logIndex, now)}
                           userId={userId}
                           memberById={memberById}
-                          readOnly={isTomorrow}
                         />
-                      ))}
-                    </Card>
-                  </View>
-                );
-              })
+                      );
+                    }
+                    const category = categoryById.get(t.todo.project_id)!;
+                    return <TodoRow item={t.todo} today={day} caption={`${category.icon} ${category.name}`} first />;
+                  }}
+                />
+              </Card>
             )}
 
-            {(!isTomorrow || stepsPlanned) && nextActions.length > 0 && (
-              <View style={{ gap: 8 }}>
-                <SectionTitle>{stepsPlanned ? '🛠️ Project steps planned' : '🛠️ Next steps'}</SectionTitle>
-                {nextActions.map(({ item, project }) => (
-                  <Card key={item.id} onPress={() => router.navigate(`/goals/${project.id}`)}>
-                    <ThemedText>{item.title}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {project.icon} {project.name}
-                      {item.due_date && (
-                        <ThemedText type="small" style={{ color: item.due_date < day ? theme.danger : theme.textSecondary }}>
-                          {' · due '}
-                          {prettyDay(item.due_date)}
-                        </ThemedText>
-                      )}
-                    </ThemedText>
-                  </Card>
-                ))}
-              </View>
-            )}
-
-            {due.length > 0 && (
+            {tasks.length > 0 && (
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-                {isTomorrow ? 'A preview of tomorrow · check off on the day' : 'Tap to check off · long-press for partial or skip'}
+                Tap to check off · hold and drag to reorder
               </ThemedText>
             )}
           </>

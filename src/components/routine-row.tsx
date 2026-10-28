@@ -1,11 +1,11 @@
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { setLog } from '@/api/routines';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDay } from '@/lib/dates';
-import { assigneesOn, completedBetween, flexibleTarget, isFlexible, periodStart } from '@/lib/schedule';
+import { assigneesOn, completedBetween, flexibleTarget, isFlexible, periodName, periodStart } from '@/lib/schedule';
 import type { LogStatus, Member, Routine, RoutineCategory, RoutineLog } from '@/lib/types';
 
 const MARK: Record<LogStatus, string> = { done: '✓', partial: '½', skipped: '–' };
@@ -22,26 +22,19 @@ type Props = {
   readOnly?: boolean;
 };
 
-/** A checkable routine. Tap toggles done; long-press offers partial / skip. */
+/** A checkable routine: tap to mark it done, tap again to undo. */
 export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false }: Props) {
   const theme = useTheme();
   const log = logs?.get(day);
   const status = log?.status;
 
   const toggle = () => setLog(routine, day, status ? null : 'done', userId);
-  const more = () =>
-    Alert.alert(routine.name, undefined, [
-      { text: 'Done', onPress: () => setLog(routine, day, 'done', userId) },
-      { text: 'Partly done', onPress: () => setLog(routine, day, 'partial', userId) },
-      { text: "Skip (doesn't count)", onPress: () => setLog(routine, day, 'skipped', userId) },
-      ...(status ? [{ text: 'Clear', style: 'destructive' as const, onPress: () => setLog(routine, day, null, userId) }] : []),
-      { text: 'Cancel', style: 'cancel' },
-    ]);
 
   const details: string[] = [`${category.icon} ${category.name}`];
   if (isFlexible(routine.schedule)) {
-    const done = completedBetween(logs, periodStart(routine.schedule, fromDay(day)), fromDay(day));
-    details.push(`${done}/${flexibleTarget(routine.schedule)} this ${routine.schedule.type === 'monthly' ? 'month' : 'week'}`);
+    const done = completedBetween(logs, periodStart(routine, fromDay(day)), fromDay(day));
+    const period = periodName(routine.schedule);
+    details.push(`${done}/${flexibleTarget(routine.schedule)} ${period === '2 weeks' ? 'in 2 weeks' : `this ${period}`}`);
   }
   const loggedBy = log && log.user_id !== userId ? memberById.get(log.user_id) : undefined;
   if (loggedBy) details.push(`by ${loggedBy.profile.display_name}`);
@@ -52,7 +45,6 @@ export function RoutineRow({ routine, category, day, logs, streak, userId, membe
   return (
     <Pressable
       onPress={toggle}
-      onLongPress={more}
       disabled={readOnly}
       style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1, paddingVertical: 10 }]}>
       <View

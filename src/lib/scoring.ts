@@ -1,25 +1,15 @@
-import {
-  addDays,
-  differenceInCalendarDays,
-  endOfMonth,
-  endOfWeek,
-  getDaysInMonth,
-  isAfter,
-  isBefore,
-  max as maxDate,
-  min as minDate,
-  subDays,
-} from 'date-fns';
+import { addDays, differenceInCalendarDays, isAfter, isBefore, max as maxDate, min as minDate, subDays } from 'date-fns';
 
 import { fromDay, toDay } from '@/lib/dates';
 import {
   completedBetween,
-  daysAssignedTo,
   flexibleTarget,
-  hasDayAssignees,
+  isDayAssignee,
   isFixedDueOn,
   isFlexible,
   logValue,
+  periodEnd,
+  periodLength,
   periodStart,
 } from '@/lib/schedule';
 import type { Routine, RoutineCategory, RoutineLog } from '@/lib/types';
@@ -74,12 +64,11 @@ export function scoreRoutine(routine: Routine, logs: LogIndex, from: Date, to: D
   } else {
     // Prorate the weekly/monthly target over the days of each period inside the range.
     const target = flexibleTarget(routine.schedule);
-    for (let p = periodStart(routine.schedule, start); !isAfter(p, end); ) {
-      const periodEnd =
-        routine.schedule.type === 'monthly' ? endOfMonth(p) : endOfWeek(p, { weekStartsOn: 1 });
-      const periodDays = routine.schedule.type === 'monthly' ? getDaysInMonth(p) : 7;
+    for (let p = periodStart(routine, start); !isAfter(p, end); ) {
+      const last = periodEnd(routine, p);
+      const periodDays = periodLength(routine, p);
       const a = maxDate([p, start]);
-      const b = minDate([periodEnd, end]);
+      const b = minDate([last, end]);
       // Elapsed days exclude today, but today's logs still count.
       const elapsedEnd = toDay(b) === todayKey ? subDays(b, 1) : b;
       const days = Math.max(0, differenceInCalendarDays(elapsedEnd, a) + 1);
@@ -87,10 +76,10 @@ export function scoreRoutine(routine: Routine, logs: LogIndex, from: Date, to: D
       const done = completedBetween(byDay, a, b);
       expected += periodExpected;
       achieved += Math.min(done, periodExpected);
-      p = addDays(periodEnd, 1);
+      p = addDays(last, 1);
     }
   }
-  return { expected: expected * routine.weight, achieved: achieved * routine.weight };
+  return { expected, achieved };
 }
 
 export function scoreRoutines(routines: Routine[], logs: LogIndex, from: Date, to: Date, now = new Date()): Score {
@@ -119,14 +108,12 @@ export function streak(routine: Routine, logs: LogIndex, now = new Date()): numb
   }
 
   const target = flexibleTarget(routine.schedule);
-  const periodEndOf = (p: Date) =>
-    routine.schedule.type === 'monthly' ? endOfMonth(p) : endOfWeek(p, { weekStartsOn: 1 });
-  let p = periodStart(routine.schedule, now);
-  if (completedBetween(byDay, p, now) < target) p = periodStart(routine.schedule, subDays(p, 1));
-  for (let i = 0; i < 60 && !isBefore(periodEndOf(p), start); i++) {
-    if (completedBetween(byDay, p, periodEndOf(p)) < target) break;
+  let p = periodStart(routine, now);
+  if (completedBetween(byDay, p, now) < target) p = periodStart(routine, subDays(p, 1));
+  for (let i = 0; i < 60 && !isBefore(periodEnd(routine, p), start); i++) {
+    if (completedBetween(byDay, p, periodEnd(routine, p)) < target) break;
     count++;
-    p = periodStart(routine.schedule, subDays(p, 1));
+    p = periodStart(routine, subDays(p, 1));
   }
   return count;
 }
@@ -144,16 +131,17 @@ export function routinesFor(
     const c = categories.get(r.category_id);
     if (!c) return [];
     if (c.visibility === 'personal') return c.owner_id === userId ? [r] : [];
+    if (r.private_to) return r.private_to === userId ? [r] : [];
     const involved =
       r.assignee_ids.includes(userId) ||
-      (hasDayAssignees(r) && daysAssignedTo(r, userId).length > 0) ||
+      isDayAssignee(r, userId) ||
       [...(r.plans?.values() ?? [])].some((p) => p.planned && p.assignee_id === userId);
     return involved ? [{ ...r, scoredFor: userId }] : [];
   });
 }
 
 export function familyRoutines(routines: Routine[], categories: Map<string, RoutineCategory>) {
-  return routines.filter((r) => categories.get(r.category_id)?.visibility === 'family');
+  return routines.filter((r) => !r.private_to && categories.get(r.category_id)?.visibility === 'family');
 }
 
 export type Band = 'good' | 'ok' | 'bad' | 'none';

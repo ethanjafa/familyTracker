@@ -25,7 +25,9 @@ export type Member = {
 export type Schedule =
   | { type: 'daily' }
   | { type: 'weekdays'; days: number[] } // 0 = Sunday … 6 = Saturday
-  | { type: 'weekly'; times: number }
+  // `days`: optional default days. Weekdays for weekly; 0–13 of the two-week cycle for biweekly (0 = Monday, week 1).
+  | { type: 'weekly'; times: number; days?: number[] }
+  | { type: 'biweekly'; times: number; days?: number[] }
   | { type: 'monthly'; times: number }
   | { type: 'interval'; every: number };
 
@@ -55,6 +57,8 @@ export type Routine = {
   day_assignees?: Partial<Record<string, string>>;
   start_date: string;
   archived_at: string | null;
+  /** Personal: only this person can see it (and they own it). null/undefined = shared. */
+  private_to?: string | null;
   /** This routine's plan changes, by day (yyyy-MM-dd). Attached client-side from routine_plans. */
   plans?: Map<string, RoutinePlan>;
   /** Set when narrowed to one person's share (their score, their Today list). */
@@ -112,6 +116,8 @@ export type ProjectItem = {
   assignee_id: string | null;
   due_date: string | null;
   planned_date?: string | null;
+  /** Personal: only this person can see it (and they own it). null/undefined = shared. */
+  private_to?: string | null;
   cost: number | null;
   sort_order: number;
   completed_at: string | null;
@@ -138,7 +144,8 @@ export type MealPlan = {
   cook_id: string | null;
 };
 
-export type GroceryStatus = 'have' | 'need';
+/** need = to buy · have = in the house · backlog = bought now and then, not needed right now */
+export type GroceryStatus = 'have' | 'need' | 'backlog';
 
 export type GroceryItem = {
   id: string;

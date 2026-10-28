@@ -1,20 +1,22 @@
 {
   "expo": {
-    "name": "Dragon Boat",
-    "slug": "dragon-boat",
-    "version": "1.0.0",
+    "name": "WhoseTurn",
+    "slug": "whoseturn",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tracker",
+    "scheme": "whoseturn",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.ehsanjafarzadeh.dragonboat",
+      "bundleIdentifier": "com.ehsanjafarzadeh.whoseturn",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "supportsTablet": false,
+      "usesAppleSignIn": true
     },
     "android": {
-      "package": "com.ehsanjafarzadeh.dragonboat",
+      "package": "com.ehsanjafarzadeh.whoseturn",
       "adaptiveIcon": {
         "backgroundColor": "#5CCB94",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -37,7 +39,10 @@
           "imageWidth": 220
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-apple-authentication",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -50,8 +55,15 @@
         }
       },
       "eas": {
-        "projectId": "b0424c4d-209c-49b8-bf34-60eebbf5e875"
+        "projectId": "2e32d9d6-d0d5-401c-9db7-7d1a6ef832bc"
       }
+    },
+    "owner": "ehsanjafa",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2e32d9d6-d0d5-401c-9db7-7d1a6ef832bc"
     }
   }
 }

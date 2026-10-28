@@ -1,16 +1,17 @@
 import { addDays, format, subDays, subMonths, endOfMonth, isAfter } from 'date-fns';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Card, Chip, Loading, ProgressBar, Screen, ScorePill, SectionTitle, Segmented, styles, useBandColor } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { monthStart, today, weekStart } from '@/lib/dates';
+import { fromDay, monthStart, today, weekStart } from '@/lib/dates';
 import { buildInsights } from '@/lib/insights';
-import { projectStats } from '@/lib/projects';
+import { categoryStats } from '@/lib/projects';
+import { assigneesOn } from '@/lib/schedule';
 import { band, familyRoutines, pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -26,6 +27,7 @@ export default function ScorecardScreen() {
   const items = useProjectItems();
   const [period, setPeriod] = useState<Period>('week');
   const [scope, setScope] = useState<string>(FAMILY);
+  const [explain, setExplain] = useState(false);
 
   if (data.isLoading || projects.isPending || items.isPending) return <Loading />;
 
@@ -36,7 +38,11 @@ export default function ScorecardScreen() {
 
   const scoped =
     scope === FAMILY ? familyRoutines(data.routines, data.categoryById) : routinesFor(scope, data.routines, data.categoryById);
-  const current = pct(scoreRoutines(scoped, data.logIndex, from, now, now));
+  const score = scoreRoutines(scoped, data.logIndex, from, now, now);
+  const current = pct(score);
+  // In plain numbers: how many check-ins were due so far, and how many are done.
+  const dueSoFar = Math.round(score.expected);
+  const doneSoFar = Math.min(Math.round(score.achieved), dueSoFar);
   const previous = pct(scoreRoutines(scoped, data.logIndex, prevFrom, prevTo, now));
   const delta = current !== null && previous !== null ? current - previous : null;
 
@@ -55,13 +61,18 @@ export default function ScorecardScreen() {
     })
     .filter((x) => x.value !== undefined);
 
-  // Who did the family routines this period.
-  const familyIds = new Set(familyRoutines(data.routines, data.categoryById).map((r) => r.id));
+  // Who did the family routines this period. A check-in counts for the routine's owner that day,
+  // whoever ticked it off (e.g. one parent ticking the other's routine still counts for its owner).
+  const familyById = new Map(familyRoutines(data.routines, data.categoryById).map((r) => [r.id, r]));
   const fromKey = format(from, 'yyyy-MM-dd');
   const contributions = new Map<string, number>();
   for (const log of data.logs) {
-    if (familyIds.has(log.routine_id) && log.log_date >= fromKey && log.status !== 'skipped') {
-      contributions.set(log.user_id, (contributions.get(log.user_id) ?? 0) + (log.status === 'done' ? 1 : 0.5));
+    const routine = familyById.get(log.routine_id);
+    if (!routine || log.log_date < fromKey || log.status === 'skipped') continue;
+    const owners = assigneesOn(routine, fromDay(log.log_date));
+    // Unowned routines ("anyone") credit whoever did them.
+    for (const owner of owners.length ? owners : [log.user_id]) {
+      contributions.set(owner, (contributions.get(owner) ?? 0) + (log.status === 'done' ? 1 : 0.5));
     }
   }
   const totalContribution = [...contributions.values()].reduce((a, b) => a + b, 0);
@@ -72,18 +83,17 @@ export default function ScorecardScreen() {
     .sort((a, b) => b.s - a.s)
     .slice(0, 5);
 
-  // Projects visible in this scope.
+  // To-do categories visible in this scope.
   const day = today();
-  const scopedProjects = (projects.data ?? []).filter(
-    (p) => p.status === 'active' && (scope === FAMILY ? p.visibility === 'family' : scope === userId || p.visibility === 'family'),
-  );
-  const projectSignals = scopedProjects.map((p) => ({ name: p.name, ...projectStats(p, items.data ?? [], day) }));
-  const stepsDone = (items.data ?? []).filter(
-    (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedProjects.some((p) => p.id === i.project_id),
+  const scopedCategories = projects.data ?? [];
+  const categorySignals = scopedCategories.map((p) => ({ name: p.name, icon: p.icon, ...categoryStats(p, items.data ?? [], day) }));
+  const todosDone = (items.data ?? []).filter(
+    (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedCategories.some((p) => p.id === i.project_id),
   ).length;
 
-  const insights = buildInsights(scoped, data.logIndex, projectSignals, now);
+  const insights = buildInsights(scoped, data.logIndex, categorySignals, now);
   const isOther = scope !== FAMILY && scope !== userId;
+  const who = scope === FAMILY ? 'The family' : scope === userId ? 'You' : (memberById.get(scope)?.profile.display_name ?? 'They');
 
   return (
     <>
@@ -109,19 +119,54 @@ export default function ScorecardScreen() {
           ))}
         </View>
 
-        <Card style={{ alignItems: 'center', paddingVertical: 24 }}>
-          <ThemedText style={{ fontSize: 56, lineHeight: 64, fontWeight: 800, color: bandColor(band(current)) }}>
-            {current === null ? '—' : `${current}%`}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {delta === null
-              ? 'No routines scheduled yet'
-              : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} pts vs last ${period}`}
-          </ThemedText>
-          {isOther && (
+        <Card style={{ alignItems: 'center', paddingVertical: 24, gap: 4 }}>
+          {current === null ? (
             <ThemedText type="small" themeColor="textSecondary">
-              Based on shared routines assigned to {memberById.get(scope)?.profile.display_name}
+              Nothing was due yet this {period}.
             </ThemedText>
+          ) : (
+            <>
+              <ThemedText style={{ fontSize: 44, lineHeight: 52, fontWeight: 800, color: bandColor(band(current)) }}>
+                {doneSoFar} of {dueSoFar}
+              </ThemedText>
+              <ThemedText style={{ fontWeight: 600, textAlign: 'center' }}>
+                routines done this {period} so far · {current}%
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+                {delta === null
+                  ? `${who} had nothing due last ${period}.`
+                  : delta === 0
+                    ? `Same as last ${period}.`
+                    : `${Math.abs(delta)}% ${delta > 0 ? 'better' : 'lower'} than last ${period} (${previous}%).`}
+              </ThemedText>
+            </>
+          )}
+          {isOther && (
+            <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+              Counting the family routines {memberById.get(scope)?.profile.display_name} owns.
+            </ThemedText>
+          )}
+          <Pressable onPress={() => setExplain((e) => !e)} hitSlop={8} style={{ marginTop: 6 }}>
+            <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
+              {explain ? 'Hide' : 'How is this counted?'}
+            </ThemedText>
+          </Pressable>
+          {explain && (
+            <View style={{ gap: 4, alignSelf: 'stretch', marginTop: 4 }}>
+              {[
+                'Every time a routine is due counts once: "Every day" is 7 a week, "Mon, Wed, Fri" is 3.',
+                'Ticked off = done. Today only counts once you tick it, so an unfinished day never lowers it.',
+                '"3× a week" routines count toward the days that have passed so far.',
+                scope === FAMILY
+                  ? 'Family counts all shared routines. Personal 🔒 routines are left out.'
+                  : 'A person counts their personal routines plus the family routines they own.',
+                'To-dos are shown separately below, not in this score.',
+              ].map((line) => (
+                <ThemedText key={line} type="small" themeColor="textSecondary">
+                  • {line}
+                </ThemedText>
+              ))}
+            </View>
           )}
         </Card>
 
@@ -144,7 +189,7 @@ export default function ScorecardScreen() {
           </Card>
         ))}
 
-        <SectionTitle>Last 8 weeks</SectionTitle>
+        <SectionTitle>Last 8 weeks · % of routines done</SectionTitle>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 }}>
             {trend.map((t, i) => (
@@ -174,7 +219,7 @@ export default function ScorecardScreen() {
 
         {categories.length > 0 && (
           <>
-            <SectionTitle>By category</SectionTitle>
+            <SectionTitle>By category · % done this {period}</SectionTitle>
             <Card>
               {categories.map(({ c, value }) => (
                 <View key={c.id} style={{ gap: 4, paddingVertical: 4 }}>
@@ -193,12 +238,12 @@ export default function ScorecardScreen() {
 
         {streaks.length > 0 && (
           <>
-            <SectionTitle>Streaks</SectionTitle>
+            <SectionTitle>Streaks · done every time, in a row</SectionTitle>
             <Card>
               {streaks.map(({ r, s }) => (
                 <View key={r.id} style={[styles.row, { justifyContent: 'space-between' }]}>
                   <ThemedText>{r.name}</ThemedText>
-                  <ThemedText type="smallBold">🔥 {s}</ThemedText>
+                  <ThemedText type="smallBold">🔥 {s} in a row</ThemedText>
                 </View>
               ))}
             </Card>
@@ -207,7 +252,7 @@ export default function ScorecardScreen() {
 
         {scope === FAMILY && totalContribution > 0 && (
           <>
-            <SectionTitle>Who kept the house running</SectionTitle>
+            <SectionTitle>Who did the family routines this {period}</SectionTitle>
             <Card>
               {members.map((m) => {
                 const value = contributions.get(m.user_id) ?? 0;
@@ -220,7 +265,7 @@ export default function ScorecardScreen() {
                         <ThemedText>{m.profile.display_name}</ThemedText>
                       </View>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {value} check-ins · {share}%
+                        {value} done · {share}% of all
                       </ThemedText>
                     </View>
                     <ProgressBar value={share} color={memberColor(m.user_id)} />
@@ -231,22 +276,24 @@ export default function ScorecardScreen() {
           </>
         )}
 
-        {scopedProjects.length > 0 && (
+        {scopedCategories.length > 0 && (
           <>
-            <SectionTitle>Projects</SectionTitle>
+            <SectionTitle>To do</SectionTitle>
             <Card>
               <ThemedText type="small" themeColor="textSecondary">
-                {stepsDone} step{stepsDone === 1 ? '' : 's'} completed this {period}
+                {todosDone} to-do{todosDone === 1 ? '' : 's'} done this {period}
               </ThemedText>
-              {projectSignals.map((p, i) => (
+              {categorySignals.map((c, i) => (
                 <View key={i} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
                     <ThemedText>
-                      {scopedProjects[i].icon} {p.name}
+                      {c.icon} {c.name}
                     </ThemedText>
-                    <ThemedText type="smallBold">{p.percent}%</ThemedText>
+                    <ThemedText type="smallBold">
+                      {c.done}/{c.total}
+                    </ThemedText>
                   </View>
-                  <ProgressBar value={p.percent} color={theme.tint} />
+                  <ProgressBar value={c.total ? (100 * c.done) / c.total : 0} color={theme.tint} />
                 </View>
               ))}
             </Card>

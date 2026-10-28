@@ -13,7 +13,7 @@ export type Provider = 'google' | 'apple';
 
 /**
  * Expo Go on Android can report a "bare" environment, so createURL returns the app's own
- * scheme (tracker://), which Expo Go can't receive. Link back through the dev server instead.
+ * scheme (whoseturn://), which Expo Go can't receive. Link back through the dev server instead.
  */
 function getRedirectUrl() {
   const hostUri = Constants.expoConfig?.hostUri;
@@ -55,6 +55,37 @@ export async function signInWith(provider: Provider) {
   if (typeof code !== 'string') throw new Error('Sign-in did not return a code.');
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) throw exchangeError;
+}
+
+/**
+ * Email sign-in without a password: Supabase emails a 6-digit code (new emails get an account).
+ * The email template must include {{ .Token }} (Supabase → Authentication → Email Templates).
+ */
+export async function sendEmailCode(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
+  if (error) throw error;
+}
+
+/** Finish email sign-in with the code from the email. The session is picked up by AuthProvider. */
+export async function verifyEmailCode(email: string, code: string) {
+  const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+  if (error) throw error;
+}
+
+/**
+ * Permanently delete the signed-in account (App Store / Google Play requirement). Shared family
+ * things you created stay with the family; everything that's only yours is removed.
+ */
+export async function deleteAccount() {
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw error;
+  await unregisterAndClear();
+}
+
+/** The account no longer exists on the server, so only the local session needs clearing. */
+async function unregisterAndClear() {
+  await supabase.auth.signOut({ scope: 'local' });
+  queryClient.clear();
 }
 
 export async function signOut() {

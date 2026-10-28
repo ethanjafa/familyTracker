@@ -22,8 +22,7 @@ const daily: Schedule = { type: 'daily' };
 const days = (...d: number[]): Schedule => ({ type: 'weekdays', days: d });
 const weekdays = days(1, 2, 3, 4, 5);
 const perWeek = (times: number): Schedule => ({ type: 'weekly', times });
-const perMonth = (times: number): Schedule => ({ type: 'monthly', times });
-const every = (n: number): Schedule => ({ type: 'interval', every: n });
+const perTwoWeeks = (times: number): Schedule => ({ type: 'biweekly', times });
 
 const r = (name: string, schedule: Schedule, time_of_day: TimeOfDay = 'anytime', weight: 1 | 2 | 3 = 2): RoutineTemplate => ({
   name,
@@ -102,8 +101,8 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
       r('Feed the pets', daily, 'morning', 3),
       r('Walk the dog', daily, 'morning', 3),
       r('Evening walk', daily, 'evening'),
-      r('Clean the litter box', every(2)),
-      r('Grooming / vet check', perMonth(1), 'anytime', 1),
+      r('Clean the litter box', perWeek(3)),
+      r('Grooming / vet check', perTwoWeeks(1), 'anytime', 1),
     ],
   },
   {
@@ -113,7 +112,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
     visibility: 'family',
     keywords: ['garden', 'plant', 'yard', 'lawn', 'maintenance'],
     routines: [
-      r('Water the plants', every(3)),
+      r('Water the plants', perWeek(2)),
       r('Mow the lawn', perWeek(1)),
       r('Check the mail', daily, 'day', 1),
       r('Take bins to the curb', days(3), 'evening'),
@@ -127,7 +126,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
     keywords: ['money', 'finance', 'budget', 'bill', 'bank'],
     routines: [
       r('Review the budget', perWeek(1)),
-      r('Pay the bills', perMonth(1), 'anytime', 3),
+      r('Pay the bills', perTwoWeeks(1), 'anytime', 3),
       r('Check bank accounts', perWeek(1), 'anytime', 1),
     ],
   },
@@ -141,7 +140,7 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
       r('Family dinner together', daily, 'evening'),
       r('Weekly family meeting', perWeek(1)),
       r('Family outing', perWeek(1)),
-      r('Date night', perMonth(2), 'evening'),
+      r('Date night', perTwoWeeks(1), 'evening'),
     ],
   },
   // Personal
@@ -209,12 +208,12 @@ export const CATEGORY_TEMPLATES: CategoryTemplate[] = [
 const normalize = (s: string) => s.toLowerCase().trim();
 
 /** The template an existing category most likely corresponds to (by icon or name keywords). */
-export function templateFor(category: Pick<RoutineCategory, 'name' | 'icon' | 'visibility'>): CategoryTemplate | undefined {
+export function templateFor(category: Pick<RoutineCategory, 'name' | 'icon'>): CategoryTemplate | undefined {
   const name = normalize(category.name);
   return (
     CATEGORY_TEMPLATES.find((t) => normalize(t.name) === name) ??
     CATEGORY_TEMPLATES.find((t) => t.keywords.some((k) => name.includes(k))) ??
-    CATEGORY_TEMPLATES.find((t) => t.icon === category.icon && t.visibility === category.visibility)
+    CATEGORY_TEMPLATES.find((t) => t.icon === category.icon)
   );
 }
 
@@ -226,10 +225,10 @@ export function suggestedRoutines(category: RoutineCategory, routines: Routine[]
   return template.routines.filter((t) => !have.has(normalize(t.name)));
 }
 
-/** Categories worth suggesting for a tab: templates none of the existing categories already cover. */
-export function suggestedCategories(visibility: Visibility, categories: RoutineCategory[]): CategoryTemplate[] {
+/** Categories worth suggesting: templates none of the existing categories already cover. */
+export function suggestedCategories(categories: RoutineCategory[]): CategoryTemplate[] {
   const covered = new Set(categories.map((c) => templateFor(c)?.key).filter(Boolean));
-  return CATEGORY_TEMPLATES.filter((t) => t.visibility === visibility && !covered.has(t.key));
+  return CATEGORY_TEMPLATES.filter((t) => !covered.has(t.key));
 }
 
 /** Suggestions for the routine-name field: matching templates first, then everything else that fits. */
@@ -237,7 +236,7 @@ export function routineIdeas(category: RoutineCategory | undefined, routines: Ro
   const q = normalize(query);
   const have = new Set(routines.map((x) => normalize(x.name)));
   const own = category ? (templateFor(category)?.routines ?? []) : [];
-  const rest = CATEGORY_TEMPLATES.filter((t) => !category || t.visibility === category.visibility).flatMap((t) => t.routines);
+  const rest = CATEGORY_TEMPLATES.flatMap((t) => t.routines);
   const seen = new Set<string>();
   return [...own, ...rest].filter((t) => {
     const key = normalize(t.name);

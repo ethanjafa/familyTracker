@@ -1,5 +1,5 @@
 /**
- * Dragon Boat design tokens: a fresh, clean palette built around the light-green brand colour.
+ * WhoseTurn design tokens: a fresh, clean palette built around the light-green brand colour.
  * Light mode uses a soft mint-white canvas with white cards; dark mode swaps cards for raised greys.
  */
 

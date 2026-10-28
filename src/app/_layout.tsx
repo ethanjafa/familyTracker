@@ -11,6 +11,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors, FontFamilies } from '@/constants/theme';
 import { queryClient } from '@/lib/query-client';
@@ -39,13 +40,15 @@ const navTheme = (dark: boolean) => {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <HouseholdProvider>
-          <RootNavigator />
-        </HouseholdProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <HouseholdProvider>
+            <RootNavigator />
+          </HouseholdProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -83,8 +86,8 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="category-form" options={modal} />
           <Stack.Screen name="routine-form" options={modal} />
-          <Stack.Screen name="project-form" options={modal} />
-          <Stack.Screen name="item-form" options={modal} />
+          <Stack.Screen name="todo-category-form" options={modal} />
+          <Stack.Screen name="todo-form" options={modal} />
           <Stack.Screen name="suggestion" options={modal} />
           <Stack.Screen name="meal-form" options={modal} />
           <Stack.Screen name="meals" options={modal} />
@@ -92,6 +95,9 @@ function RootNavigator() {
           <Stack.Screen name="store-mode" options={modal} />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
+        {/* Public pages the app store listings link to; readable without signing in. */}
+        <Stack.Screen name="privacy" options={{ headerShown: true }} />
+        <Stack.Screen name="delete-account" options={{ headerShown: true }} />
       </Stack>
     </ThemeProvider>
   );

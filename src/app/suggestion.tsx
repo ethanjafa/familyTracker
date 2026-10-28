@@ -13,14 +13,13 @@ import { getTemplate } from '@/lib/suggestions';
 import { errorMessage } from '@/lib/errors';
 import { useHousehold } from '@/providers/household-provider';
 
-const TIME_LABEL = { morning: 'Morning', day: 'Day', evening: 'Evening', anytime: '' };
 
 /** Preview a suggested category and pick which of its routines to add. */
 export default function SuggestionScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const template = getTemplate(key);
   const theme = useTheme();
-  const { household } = useHousehold();
+  const { household, userId } = useHousehold();
   const [picked, setPicked] = useState(() => new Set(template?.routines.map((r) => r.name)));
   const [busy, setBusy] = useState(false);
 
@@ -38,8 +37,9 @@ export default function SuggestionScreen() {
     setBusy(true);
     try {
       await addCategoryWithRoutines(
-        { household_id: household.id, name: template.name, icon: template.icon, visibility: template.visibility },
+        { household_id: household.id, name: template.name, icon: template.icon },
         template.routines.filter((r) => picked.has(r.name)),
+        template.visibility === 'personal' ? userId : null,
       );
       router.back();
     } catch (e) {
@@ -57,7 +57,7 @@ export default function SuggestionScreen() {
           <View style={{ flex: 1 }}>
             <ThemedText type="subtitle">{template.name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {template.visibility === 'family' ? 'Shared with your family' : 'Just for you'} · tick what fits
+              {template.visibility === 'family' ? 'Shared with your family' : '🔒 Personal routines, only you see them'} · tick what fits
             </ThemedText>
           </View>
         </View>
@@ -79,7 +79,7 @@ export default function SuggestionScreen() {
                 <View style={{ flex: 1 }}>
                   <ThemedText style={{ fontWeight: 600 }}>{r.name}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {[describeSchedule(r.schedule), TIME_LABEL[r.time_of_day], r.weight === 3 ? 'Must do' : ''].filter(Boolean).join(' · ')}
+                    {describeSchedule(r.schedule)}
                   </ThemedText>
                 </View>
               </Pressable>

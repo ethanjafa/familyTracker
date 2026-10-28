@@ -1,15 +1,15 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Share, View } from 'react-native';
 
 import { createInvite, removeMember, setPlanningDay, updateHousehold, updateProfile } from '@/api/household';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, ChipGroup, Field, Screen, SectionTitle, styles } from '@/components/ui';
+import { Avatar, Button, Card, Dropdown, Field, Screen, SectionTitle, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
-import { signOut } from '@/lib/auth';
+import { deleteAccount, signOut } from '@/lib/auth';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
-import { PLANNING_DAY_OPTIONS, planningDayOf } from '@/lib/planning';
+import { PLANNING_DAY_NAMES, planningDayOf } from '@/lib/planning';
 import type { Member } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -27,7 +27,7 @@ export default function SettingsScreen() {
     try {
       const code = await createInvite(household.id);
       await Share.share({
-        message: `Join "${household.name}" on Dragon Boat: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
+        message: `Join "${household.name}" on WhoseTurn: open the app, sign in, choose "Join with code" and enter ${code} (valid for 7 days).`,
       });
     } catch (e) {
       showAlert('Could not create invite', errorMessage(e));
@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   const remove = async (m: Member) => {
     const ok = await confirmAsync(
       `Remove ${m.profile.display_name}?`,
-      'They lose access to the family routines and projects, and are taken off everything assigned to them. You can invite them again later.',
+      'They lose access to the family routines and to-dos, and are taken off everything assigned to them. You can invite them again later.',
       'Remove',
     );
     if (!ok) return;
@@ -59,6 +59,20 @@ export default function SettingsScreen() {
           : errorMessage(e),
       ),
     );
+
+  const removeAccount = async () => {
+    const ok = await confirmAsync(
+      'Delete your account?',
+      'This can’t be undone. Your personal routines and to-dos are deleted. Shared family routines, to-dos and meals stay with your family, and if you are the last member, the household is deleted too.',
+      'Delete account',
+    );
+    if (!ok) return;
+    try {
+      await deleteAccount();
+    } catch (e) {
+      showAlert('Could not delete your account', errorMessage(e));
+    }
+  };
 
   const save = async () => {
     setBusy('save');
@@ -105,12 +119,12 @@ export default function SettingsScreen() {
           <Button title="Invite a family member" variant="secondary" onPress={invite} loading={busy === 'invite'} />
         </Card>
 
-        <SectionTitle>Weekly planning</SectionTitle>
+        <SectionTitle>Planning day</SectionTitle>
         <Card>
+          <Dropdown options={PLANNING_DAY_NAMES} value={planningDayOf(household)} onChange={changePlanningDay} />
           <ThemedText type="small" themeColor="textSecondary">
-            Your planning day. That day, everyone gets a ⛵ Plan the week together task on Today.
+            That day, everyone gets a ⛵ Plan the week together task on Today.
           </ThemedText>
-          <ChipGroup options={PLANNING_DAY_OPTIONS} value={planningDayOf(household)} onChange={changePlanningDay} />
         </Card>
 
         <SectionTitle>Profile</SectionTitle>
@@ -120,7 +134,14 @@ export default function SettingsScreen() {
           <Button title="Save" onPress={save} loading={busy === 'save'} disabled={!displayName.trim()} />
         </Card>
 
-        <Button title="Sign out" variant="danger" onPress={signOut} />
+        <SectionTitle>Account</SectionTitle>
+        <Button title="Sign out" variant="secondary" onPress={signOut} />
+        <Button title="Delete my account" variant="danger" onPress={removeAccount} />
+        <Pressable onPress={() => router.push('/privacy')} hitSlop={8} style={{ alignSelf: 'center' }}>
+          <ThemedText type="small" themeColor="textSecondary" style={{ textDecorationLine: 'underline' }}>
+            Privacy policy
+          </ThemedText>
+        </Pressable>
       </Screen>
     </>
   );

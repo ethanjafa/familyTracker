@@ -3,6 +3,7 @@ import { subWeeks } from 'date-fns';
 
 import { toDay, weekStart } from '@/lib/dates';
 import { showAlert } from '@/lib/dialogs';
+import { categoryIcon } from '@/lib/icons';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { LogStatus, Routine, RoutineCategory, RoutineLog } from '@/lib/types';
@@ -71,6 +72,18 @@ export async function saveCategory(values: Partial<RoutineCategory> & Pick<Routi
   await queryClient.invalidateQueries({ queryKey: ['routine_categories'] });
 }
 
+/** Create a category from the routine form; its icon comes from the name. Returns its id. */
+export async function createCategory(householdId: string, name: string) {
+  const { data, error } = await supabase
+    .from('routine_categories')
+    .insert({ household_id: householdId, name, icon: categoryIcon(name), visibility: 'family' })
+    .select('id')
+    .single();
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['routine_categories'] });
+  return data.id as string;
+}
+
 export async function deleteCategory(id: string) {
   const { error } = await supabase.from('routine_categories').delete().eq('id', id);
   if (error) throw error;
@@ -88,37 +101,34 @@ export async function saveRoutine(
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
-type NewRoutine = Pick<Routine, 'name' | 'schedule' | 'time_of_day' | 'weight'>;
+type NewRoutine = Pick<Routine, 'name' | 'schedule'>;
 
 /** Add several routines to a category at once (e.g. from suggestions). */
-export async function addRoutines(householdId: string, categoryId: string, routines: NewRoutine[]) {
+export async function addRoutines(householdId: string, categoryId: string, routines: NewRoutine[], privateTo: string | null = null) {
   if (!routines.length) return;
+  // Personal routines are hidden from everyone else and owned by that person.
+  const personal = privateTo ? { private_to: privateTo, assignee_ids: [privateTo] } : {};
   const { error } = await supabase
     .from('routines')
-    .insert(routines.map((r) => ({ ...r, household_id: householdId, category_id: categoryId })));
+    .insert(routines.map((r) => ({ name: r.name, schedule: r.schedule, household_id: householdId, category_id: categoryId, ...personal })));
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
-/** Create a category together with its first routines. */
+/** Create a (shared) category together with its first routines, optionally personal ones. */
 export async function addCategoryWithRoutines(
-  category: Pick<RoutineCategory, 'household_id' | 'name' | 'icon' | 'visibility'>,
+  category: Pick<RoutineCategory, 'household_id' | 'name' | 'icon'>,
   routines: NewRoutine[],
+  privateTo: string | null = null,
 ) {
-  const { data, error } = await supabase.from('routine_categories').insert(category).select('id').single();
+  const { data, error } = await supabase
+    .from('routine_categories')
+    .insert({ ...category, visibility: 'family' })
+    .select('id')
+    .single();
   if (error) throw error;
-  await addRoutines(category.household_id, data.id, routines);
+  await addRoutines(category.household_id, data.id, routines, privateTo);
   await queryClient.invalidateQueries({ queryKey: ['routine_categories'] });
-}
-
-/** Archiving keeps history in old scorecards; the routine just stops appearing. */
-export async function archiveRoutine(id: string) {
-  const { error } = await supabase
-    .from('routines')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['routines'] });
 }
 
 /** Deleting removes the routine and all of its check-ins from every scorecard. */

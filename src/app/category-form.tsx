@@ -2,32 +2,30 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { deleteCategory, saveCategory, useCategories } from '@/api/routines';
-import { ThemedText } from '@/components/themed-text';
-import { Button, Field, IconPicker, Label, Loading, Screen, Segmented } from '@/components/ui';
-import type { RoutineCategory, Visibility } from '@/lib/types';
+import { Button, Field, Loading, Screen } from '@/components/ui';
+import type { RoutineCategory } from '@/lib/types';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { categoryIcon } from '@/lib/icons';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function CategoryForm() {
-  const params = useLocalSearchParams<{ id?: string; visibility?: Visibility }>();
+  const params = useLocalSearchParams<{ id?: string }>();
   const categories = useCategories();
   if (params.id && categories.isPending) return <Loading />;
   const existing = categories.data?.find((c) => c.id === params.id);
-  return <CategoryFormBody existing={existing} defaultVisibility={params.visibility ?? 'family'} />;
+  return <CategoryFormBody existing={existing} />;
 }
 
-function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineCategory; defaultVisibility: Visibility }) {
+function CategoryFormBody({ existing }: { existing?: RoutineCategory }) {
   const { household } = useHousehold();
   const [name, setName] = useState(existing?.name ?? '');
-  const [icon, setIcon] = useState(existing?.icon ?? '🏠');
-  const [visibility, setVisibility] = useState<Visibility>(existing?.visibility ?? defaultVisibility);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon, visibility });
+      await saveCategory({ id: existing?.id, household_id: household.id, name: name.trim(), icon: categoryIcon(name.trim()), visibility: existing?.visibility ?? 'family' });
       router.back();
     } catch (e) {
       showAlert('Could not save', errorMessage(e));
@@ -50,26 +48,6 @@ function CategoryFormBody({ existing, defaultVisibility }: { existing?: RoutineC
       <Stack.Screen options={{ title: existing ? 'Edit category' : 'New category' }} />
       <Screen>
         <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. House cleanliness" autoFocus={!existing} />
-        {!existing && (
-          <>
-            <Label>Who is it for</Label>
-            <Segmented
-              options={[
-                { value: 'family', label: '👨‍👩‍👧 Family' },
-                { value: 'personal', label: '🙋 Just me' },
-              ]}
-              value={visibility}
-              onChange={setVisibility}
-            />
-            <ThemedText type="small" themeColor="textSecondary">
-              {visibility === 'personal'
-                ? 'Only you can see personal categories.'
-                : 'Everyone in your household can see and log family routines.'}
-            </ThemedText>
-          </>
-        )}
-        <Label>Icon</Label>
-        <IconPicker value={icon} onChange={setIcon} />
         <Button title="Save" onPress={save} loading={busy} disabled={!name.trim()} />
         {existing && <Button title="Delete category" variant="danger" onPress={remove} />}
       </Screen>
