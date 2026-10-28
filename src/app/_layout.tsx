@@ -7,10 +7,10 @@ import {
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors, FontFamilies } from '@/constants/theme';
@@ -69,6 +69,14 @@ function RootNavigator() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
+  // In the phone apps, signed-out people always start on sign-in, whatever screen the navigator
+  // falls back to. (On the web the public privacy and delete-account pages stay reachable.)
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!ready || session || Platform.OS === 'web') return;
+    if (pathname !== '/sign-in') router.replace('/sign-in');
+  }, [ready, session, pathname]);
+
   if (!ready) return null;
 
   const modal = { presentation: 'modal', headerShown: true } as const;
@@ -76,8 +84,12 @@ function RootNavigator() {
   return (
     <ThemeProvider value={navTheme(colorScheme === 'dark')}>
       <Stack screenOptions={{ headerShown: false }}>
+        {/* Signed out: sign-in comes first, so it's where the app opens. The public pages the app
+            store listings link to are here too, after it; signed-in people read them in Settings. */}
         <Stack.Protected guard={!session}>
           <Stack.Screen name="sign-in" />
+          <Stack.Screen name="privacy" options={{ headerShown: true }} />
+          <Stack.Screen name="delete-account" options={{ headerShown: true }} />
         </Stack.Protected>
         <Stack.Protected guard={!!session && !household}>
           <Stack.Screen name="onboarding" />
@@ -95,9 +107,6 @@ function RootNavigator() {
           <Stack.Screen name="store-mode" options={modal} />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
-        {/* Public pages the app store listings link to; readable without signing in. */}
-        <Stack.Screen name="privacy" options={{ headerShown: true }} />
-        <Stack.Screen name="delete-account" options={{ headerShown: true }} />
       </Stack>
     </ThemeProvider>
   );

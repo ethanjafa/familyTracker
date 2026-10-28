@@ -1,4 +1,6 @@
+import Constants from 'expo-constants';
 import { Image } from 'expo-image';
+import * as Updates from 'expo-updates';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +20,13 @@ const HIGHLIGHTS = [
   { icon: '📝', text: 'Shared to-dos with owners and target dates' },
   { icon: '📈', text: 'Weekly scores to see how the family is doing' },
 ];
+
+/** "Version 1.3.0 · update 01a18061" — shows which over-the-air update is running. */
+function versionLabel() {
+  const version = Constants.expoConfig?.version ?? '';
+  const update = Updates.isEmbeddedLaunch || !Updates.updateId ? 'built-in' : `update ${Updates.updateId.slice(0, 8)}`;
+  return Platform.OS === 'web' ? `Version ${version}` : `Version ${version} · ${update}`;
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -179,6 +188,9 @@ export default function SignInScreen() {
               )}
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
                 Everyone in your family signs in with their own account.
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center', fontSize: 11, opacity: 0.6 }}>
+                {versionLabel()}
               </ThemedText>
             </View>
           </ScrollView>

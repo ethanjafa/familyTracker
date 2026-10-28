@@ -137,7 +137,7 @@ export default function SettingsScreen() {
         <SectionTitle>Account</SectionTitle>
         <Button title="Sign out" variant="secondary" onPress={signOut} />
         <Button title="Delete my account" variant="danger" onPress={removeAccount} />
-        <Pressable onPress={() => router.push('/privacy')} hitSlop={8} style={{ alignSelf: 'center' }}>
+        <Pressable onPress={() => router.push('/settings/privacy')} hitSlop={8} style={{ alignSelf: 'center' }}>
           <ThemedText type="small" themeColor="textSecondary" style={{ textDecorationLine: 'underline' }}>
             Privacy policy
           </ThemedText>
