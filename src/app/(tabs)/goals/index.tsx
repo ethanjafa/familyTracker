@@ -22,7 +22,7 @@ export default function GoalsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Goals', headerRight: () => <HeaderButton title="+" onPress={add} /> }} />
+      <Stack.Screen options={{ title: 'Routines & To-dos', headerRight: () => <HeaderButton title="+" onPress={add} /> }} />
       <Screen onRefresh={refetch} refreshing={routines.isRefetching || projects.isRefetching}>
         <Segmented
           options={[

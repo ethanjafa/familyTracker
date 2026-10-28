@@ -7,6 +7,7 @@ import { useGroceries } from '@/api/groceries';
 import { useMealPlans, useMeals } from '@/api/meals';
 import { useProjectItems, useProjects } from '@/api/projects';
 import { Dashboard, type Tile } from '@/components/dashboard';
+import { GetStarted, type Step } from '@/components/get-started';
 import { DraggableList } from '@/components/draggable-list';
 import { RoutineRow } from '@/components/routine-row';
 import { TodoRow } from '@/components/todo-row';
@@ -42,7 +43,7 @@ const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours()
 export default function TodayScreen() {
   const theme = useTheme();
   const glow = useElevation('brand');
-  const { household, userId, memberById } = useHousehold();
+  const { household, members, userId, memberById } = useHousehold();
   const firstName = memberById.get(userId)?.profile.display_name.trim().split(/\s+/)[0];
   const data = useRoutineData();
   const projects = useProjects();
@@ -109,7 +110,33 @@ export default function TodayScreen() {
   const planned = isWeekPlanned(household, data.logIndex, now);
   const planningToday = getDay(now) === planningDayOf(household);
 
+  // First-run checklist: each step is done once the real thing exists.
+  const ownRoutines = data.routines.filter((r) => r.id !== household.planning_routine_id);
+  const steps: Step[] = [
+    {
+      title: 'Add a routine or to-do',
+      detail: 'Start with something that repeats, like dishes or school pick-up.',
+      done: ownRoutines.length > 0 || (items.data ?? []).length > 0,
+      href: '/create',
+    },
+    {
+      title: 'Invite your family',
+      detail: 'Send an invite code from Settings so everyone is in.',
+      done: members.length > 1,
+      href: '/settings',
+    },
+    {
+      title: 'Plan who does what',
+      detail: 'Open Plan and tap the boxes to give each task an owner.',
+      done:
+        ownRoutines.some((r) => r.assignee_ids.length > 0 || (r.plans?.size ?? 0) > 0) ||
+        (items.data ?? []).some((i) => i.assignee_id),
+      href: '/plan',
+    },
+  ];
+
   const tiles: Tile[] = [
+    { icon: '➕', title: 'Create', detail: 'New routine or to-do', href: '/create' },
     {
       icon: '⛵',
       title: 'Plan the week',
@@ -124,7 +151,6 @@ export default function TodayScreen() {
       href: { pathname: '/meals', params: { week: toDay(weekStart(now)) } },
     },
     { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
-    { icon: '➕', title: 'Create', detail: 'New routine or to-do', href: '/create' },
   ];
 
   return (
@@ -135,6 +161,8 @@ export default function TodayScreen() {
           <Loading />
         ) : (
           <>
+            <GetStarted steps={steps} />
+
             <SectionTitle>Dashboard</SectionTitle>
             <Dashboard tiles={tiles} />
 
@@ -179,11 +207,11 @@ export default function TodayScreen() {
                 body={
                   data.routines.length || (items.data ?? []).length
                     ? filter === 'mine' ? 'Enjoy the free time, or switch to Family to see everyone.' : 'Enjoy the free time.'
-                    : 'Add routines and to-dos in Goals.'
+                    : 'Add routines and to-dos to get started.'
                 }
                 action={
                   !data.routines.length &&
-                  !(items.data ?? []).length && <Button title="Go to Goals" onPress={() => router.navigate('/goals')} />
+                  !(items.data ?? []).length && <Button title="Add a routine or to-do" onPress={() => router.push('/create')} />
                 }
               />
             ) : (

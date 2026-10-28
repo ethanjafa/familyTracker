@@ -106,7 +106,7 @@ export function PlanTable({ days }: { days: Date[] }) {
   const upcoming = (d: Date) => !isBefore(d, today);
   const keys = days.map(toDay);
 
-  // Routines, in category order (as in Goals). Personal ones show with you as the owner.
+  // Routines, in category order (as in Routines & To-dos). Personal ones show with you as the owner.
   const routineRow = (r: Routine, category: RoutineCategory): Row => {
     const personal = !!r.private_to || category.visibility === 'personal';
     const cells: Cell[] = days.map((d) => {

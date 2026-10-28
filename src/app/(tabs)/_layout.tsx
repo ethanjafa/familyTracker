@@ -25,7 +25,7 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="goals">
-        <NativeTabs.Trigger.Label>Goals</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Routines & To-dos</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="target" md="flag" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="scorecard">

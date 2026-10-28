@@ -13,7 +13,7 @@ import { prettyDay, today as todayKey } from '@/lib/dates';
 import { categoryStats, sortTodos } from '@/lib/projects';
 import type { Project, ProjectItem } from '@/lib/types';
 
-/** Goals → To do: categories of to-dos, each with an owner and a target date. Categories start collapsed. */
+/** Routines & To-dos → To do: categories of to-dos, each with an owner and a target date. Categories start collapsed. */
 export function TodoGoals() {
   const projects = useProjects();
   const items = useProjectItems();

@@ -29,7 +29,7 @@ import type { Routine, RoutineCategory } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
 
-/** Goals → Routines: categories with their routines, plus suggestions. */
+/** Routines & To-dos → Routines: categories with their routines, plus suggestions. */
 export function RoutineGoals() {
   const data = useRoutineData();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
