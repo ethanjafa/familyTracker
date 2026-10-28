@@ -134,13 +134,12 @@ export default function TodayScreen() {
   ];
 
   const tiles: Tile[] = [
-    { icon: '➕', title: 'Create', detail: 'New routine or to-do', href: '/create', color: '#8B5CF6' },
+    { icon: '➕', title: 'Create', detail: 'New routine or to-do', href: '/create' },
     {
       icon: '⛵',
       title: 'Plan the week',
       detail: planned ? 'Week planned ✓' : planningToday ? 'Plan the week today' : 'Plan next week',
       href: '/plan',
-      color: '#3B82F6',
       alert: planningToday && !planned,
     },
     {
@@ -148,9 +147,8 @@ export default function TodayScreen() {
       title: 'Plan meals',
       detail: dinner || lunch ? [lunch && `🥪 ${lunch.name}`, dinner && `🍽️ ${dinner.name}`].filter(Boolean).join(' · ') : 'Nothing planned',
       href: { pathname: '/meals', params: { week: toDay(weekStart(now)) } },
-      color: '#F59E0B',
     },
-    { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries', color: '#1F9D66' },
+    { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
   ];
 
   return (

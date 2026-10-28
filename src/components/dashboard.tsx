@@ -12,8 +12,6 @@ export type Tile = {
   /** One short line of live status, e.g. "5 to buy". */
   detail: string;
   href: Href;
-  /** The tile's own colour (background tint, icon circle and title). */
-  color: string;
   /** Draw attention (something needs doing). */
   alert?: boolean;
 };
@@ -37,14 +35,12 @@ function DashboardTile({ tile }: { tile: Tile }) {
       onPress={() => router.navigate(tile.href)}
       style={({ pressed }) => [
         local.tile,
-        { backgroundColor: `${tile.color}1F`, borderColor: tile.alert ? theme.warning : `${tile.color}40` },
+        { backgroundColor: theme.card, borderColor: tile.alert ? theme.warning : theme.border },
         elevation,
         { opacity: pressed ? 0.8 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] },
       ]}>
-      <View style={[local.icon, { backgroundColor: tile.color }]}>
-        <ThemedText style={{ fontSize: 20, lineHeight: 26 }}>{tile.icon}</ThemedText>
-      </View>
-      <ThemedText type="smallBold" numberOfLines={1} style={{ color: tile.color, fontSize: 15 }}>
+      <ThemedText style={{ fontSize: 24, lineHeight: 30 }}>{tile.icon}</ThemedText>
+      <ThemedText type="smallBold" numberOfLines={1}>
         {tile.title}
       </ThemedText>
       <ThemedText
@@ -67,7 +63,6 @@ const local = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
-    gap: 4,
+    gap: 2,
   },
-  icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
 });
