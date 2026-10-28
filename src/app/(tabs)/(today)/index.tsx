@@ -20,7 +20,6 @@ import {
   Screen,
   SectionTitle,
   Segmented,
-  styles,
   useElevation,
 } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
@@ -30,12 +29,12 @@ import { toDay, weekStart } from '@/lib/dates';
 import { assigneesOn, isDueToday } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
 import { sortTodos, todoDay } from '@/lib/projects';
-import { pct, routinesFor, scoreRoutines, streak } from '@/lib/scoring';
+import { routinesFor, streak } from '@/lib/scoring';
 import { applyOrder, loadOrder, mergeOrder, saveOrder } from '@/lib/today-order';
 import type { MealSlot, ProjectItem, Routine } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
-/** Mine = my routines and to-dos (plus unassigned family ones); All = everyone's. */
+/** Mine = my routines and to-dos (plus unassigned family ones); Family (all) = everyone's. */
 type Filter = 'mine' | 'all';
 
 const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours() < 18 ? 'Good afternoon' : 'Good evening');
@@ -78,7 +77,6 @@ export default function TodayScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filter, userId, day]);
-  const weekScore = pct(scoreRoutines(routinesFor(userId, data.routines, data.categoryById), data.logIndex, weekStart(now), now));
 
   // To-dos for today: today is their day (unfinished ones move on from earlier days). Ones finished today stay, ticked.
   const categoryById = new Map((projects.data ?? []).map((p) => [p.id, p]));
@@ -137,29 +135,26 @@ export default function TodayScreen() {
           <Loading />
         ) : (
           <>
+            <SectionTitle>Dashboard</SectionTitle>
+            <Dashboard tiles={tiles} />
+
+            <SectionTitle>Today</SectionTitle>
             <View style={[hero.card, { backgroundColor: theme.tint }, glow]}>
               <ThemedText type="small" style={hero.muted}>
                 {greeting(now)}
                 {firstName ? `, ${firstName}` : ''}
               </ThemedText>
-              <View style={[styles.row, { justifyContent: 'space-between', alignItems: 'flex-end' }]}>
-                <View>
-                  <ThemedText type="title" style={hero.text}>
-                    {doneCount}
-                    <ThemedText type="heading" style={hero.muted}>
-                      {' '}
-                      / {tasks.length}
-                    </ThemedText>
+              <View>
+                <ThemedText type="title" style={hero.text}>
+                  {doneCount}
+                  <ThemedText type="heading" style={hero.muted}>
+                    {' '}
+                    / {tasks.length}
                   </ThemedText>
-                  <ThemedText type="small" style={hero.muted}>
-                    {tasks.length && doneCount === tasks.length ? 'All done today 🎉' : 'done today'}
-                  </ThemedText>
-                </View>
-                <View style={hero.badge}>
-                  <ThemedText type="smallBold" style={hero.text}>
-                    Week {weekScore === null ? '—' : `${weekScore}%`}
-                  </ThemedText>
-                </View>
+                </ThemedText>
+                <ThemedText type="small" style={hero.muted}>
+                  {tasks.length && doneCount === tasks.length ? 'All done today 🎉' : 'done today'}
+                </ThemedText>
               </View>
               <ProgressBar
                 value={tasks.length ? (100 * doneCount) / tasks.length : 0}
@@ -168,13 +163,10 @@ export default function TodayScreen() {
               />
             </View>
 
-            <Dashboard tiles={tiles} />
-
-            <SectionTitle>📋 Today&apos;s list</SectionTitle>
             <Segmented
               options={[
                 { value: 'mine', label: 'Mine' },
-                { value: 'all', label: 'All' },
+                { value: 'all', label: 'Family' },
               ]}
               value={filter}
               onChange={setFilter}
@@ -186,7 +178,7 @@ export default function TodayScreen() {
                 title={!data.routines.length && !(items.data ?? []).length ? 'Nothing here yet' : 'Nothing due right now'}
                 body={
                   data.routines.length || (items.data ?? []).length
-                    ? filter === 'mine' ? 'Enjoy the free time, or switch to All to see everyone.' : 'Enjoy the free time.'
+                    ? filter === 'mine' ? 'Enjoy the free time, or switch to Family to see everyone.' : 'Enjoy the free time.'
                     : 'Add routines and to-dos in Goals.'
                 }
                 action={
@@ -237,10 +229,4 @@ const hero = StyleSheet.create({
   card: { borderRadius: Radius.xl, padding: 20, gap: Spacing.three },
   text: { color: '#FFFFFF' },
   muted: { color: 'rgba(255,255,255,0.85)' },
-  badge: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: Radius.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
 });

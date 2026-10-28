@@ -217,11 +217,15 @@ export function PlanTable({ days }: { days: Date[] }) {
 
   // Every shared box with someone in it is one task for that person; empty boxes still ahead are open.
   const counts = new Map<string, number>();
+  const perDay = new Map<string, number[]>(members.map((m) => [m.user_id, days.map(() => 0)]));
   let open = 0;
   for (const row of all.filter((r) => !r.personal)) {
     row.cells.forEach((cell, i) => {
-      if (cell.kind === 'owner') counts.set(cell.userId, (counts.get(cell.userId) ?? 0) + 1);
-      else if (cell.kind === 'open' && upcoming(days[i])) open++;
+      if (cell.kind === 'owner') {
+        counts.set(cell.userId, (counts.get(cell.userId) ?? 0) + 1);
+        const day = perDay.get(cell.userId);
+        if (day) day[i]++;
+      } else if (cell.kind === 'open' && upcoming(days[i])) open++;
     });
   }
 
@@ -242,6 +246,7 @@ export function PlanTable({ days }: { days: Date[] }) {
             ))}
           </View>
         ))}
+        {members.length > 1 && <PerPerson days={days} perDay={perDay} />}
       </Card>
       {changes > 0 && (
         <Button
@@ -256,6 +261,61 @@ export function PlanTable({ days }: { days: Date[] }) {
 }
 
 const CELL = 26;
+/** A day is uneven when someone has this many more tasks than someone else. */
+const UNEVEN_BY = 2;
+
+/**
+ * Per person, per day: how many tasks each family member has, in their colour, with a weekly
+ * total. On uneven days the busiest person's number gets an amber outline.
+ */
+function PerPerson({ days, perDay }: { days: Date[]; perDay: Map<string, number[]> }) {
+  const theme = useTheme();
+  const { members, memberColor } = useHousehold();
+  const dayMax = days.map((_, i) => Math.max(...members.map((m) => perDay.get(m.user_id)?.[i] ?? 0)));
+  const dayMin = days.map((_, i) => Math.min(...members.map((m) => perDay.get(m.user_id)?.[i] ?? 0)));
+  return (
+    <View>
+      <ThemedText type="small" themeColor="textSecondary" style={local.section}>
+        PER PERSON
+      </ThemedText>
+      {members.map((m) => {
+        const counts = perDay.get(m.user_id) ?? [];
+        const color = memberColor(m.user_id);
+        const total = counts.reduce((a, b) => a + b, 0);
+        return (
+          <View key={m.user_id} style={[local.row, { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+            <View style={local.name}>
+              <View style={[local.personDot, { backgroundColor: color }]} />
+              <ThemedText type="small" style={{ flex: 1, fontWeight: 600 }}>
+                {m.profile.display_name.trim().split(/\s+/)[0]} · {total}
+              </ThemedText>
+            </View>
+            <View style={local.cells}>
+              {counts.map((n, i) => {
+                const uneven = dayMax[i] - dayMin[i] >= UNEVEN_BY && n === dayMax[i];
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      local.cell,
+                      { backgroundColor: n ? `${color}26` : theme.backgroundElement, borderColor: uneven ? theme.warning : 'transparent' },
+                    ]}>
+                    <ThemedText type="small" style={{ fontWeight: 800, color: n ? color : theme.textSecondary, opacity: n ? 1 : 0.4 }}>
+                      {n}
+                    </ThemedText>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        );
+      })}
+      <ThemedText type="small" themeColor="textSecondary" style={{ paddingTop: 6 }}>
+        Tasks per person each day. An amber outline means that day is uneven.
+      </ThemedText>
+    </View>
+  );
+}
 
 function DayHeader({ days }: { days: Date[] }) {
   const theme = useTheme();
@@ -286,8 +346,9 @@ function TableRow({ row, days, upcoming }: { row: Row; days: Date[]; upcoming: (
   return (
     <View style={[local.row, { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
       <View style={local.name}>
-        {/* The whole name, wrapping onto as many lines as it needs; amber while it still needs someone. */}
-        <ThemedText type="small" style={{ flex: 1, fontWeight: 600, lineHeight: 17, color: row.needs ? theme.warning : theme.text }}>
+        {/* An amber dot while the row still needs someone; the whole name wraps onto as many lines as it needs. */}
+        {row.needs && <View style={[local.needsDot, { backgroundColor: theme.warning }]} />}
+        <ThemedText type="small" style={{ flex: 1, fontWeight: 600, lineHeight: 17 }}>
           {row.personal ? '🔒 ' : ''}
           {row.title}
         </ThemedText>
@@ -322,5 +383,7 @@ const local = StyleSheet.create({
   dayLabel: { width: CELL, alignItems: 'center' },
   dayText: { fontSize: 11, lineHeight: 13 },
   cell: { width: CELL, height: CELL, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  personDot: { width: 10, height: 10, borderRadius: 5 },
+  needsDot: { width: 7, height: 7, borderRadius: 4 },
   section: { fontWeight: 700, fontSize: 11, letterSpacing: 0.6, paddingTop: 12, paddingBottom: 2 },
 });
