@@ -94,7 +94,7 @@ export default function ScorecardScreen() {
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
         {totalContribution > 0 && (
           <>
-            <SectionTitle>Who did the family routines this {period}</SectionTitle>
+            <SectionTitle>Family routines by person</SectionTitle>
             <Card>
               {members.map((m) => {
                 const value = contributions.get(m.user_id) ?? 0;
@@ -140,10 +140,10 @@ export default function ScorecardScreen() {
             </ThemedText>
           ) : (
             <>
-              <ThemedText style={{ fontSize: 44, lineHeight: 52, fontWeight: 800, color: bandColor(band(current)) }}>
+              <ThemedText style={{ fontSize: 30, lineHeight: 36, fontWeight: 800, color: bandColor(band(current)) }}>
                 {doneSoFar} of {dueSoFar}
               </ThemedText>
-              <ThemedText style={{ fontWeight: 600, textAlign: 'center' }}>
+              <ThemedText type="smallBold" style={{ textAlign: 'center' }}>
                 routines done this {period} so far · {current}%
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
@@ -184,7 +184,7 @@ export default function ScorecardScreen() {
           )}
         </Card>
 
-        <SectionTitle>Last 8 weeks · % of routines done</SectionTitle>
+        <SectionTitle>Last 8 weeks</SectionTitle>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 }}>
             {trend.map((t, i) => (
@@ -214,7 +214,7 @@ export default function ScorecardScreen() {
 
         {categories.length > 0 && (
           <>
-            <SectionTitle>By category · % done this {period}</SectionTitle>
+            <SectionTitle>By category</SectionTitle>
             <Card>
               {categories.map(({ c, value }) => (
                 <View key={c.id} style={{ gap: 4, paddingVertical: 4 }}>
@@ -262,7 +262,7 @@ export default function ScorecardScreen() {
               borderLeftWidth: 4,
               borderLeftColor: i.tone === 'good' ? theme.success : i.tone === 'warn' ? theme.warning : theme.tint,
             }}>
-            <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+            <ThemedText type="smallBold">
               {i.icon} {i.title}
             </ThemedText>
             {i.body && (

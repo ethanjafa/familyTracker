@@ -21,6 +21,7 @@ import {
   Screen,
   SectionTitle,
   Segmented,
+  useElevation,
 } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
@@ -41,6 +42,7 @@ const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours()
 
 export default function TodayScreen() {
   const theme = useTheme();
+  const glow = useElevation('brand');
   const { household, members, userId, memberById } = useHousehold();
   const firstName = memberById.get(userId)?.profile.display_name.trim().split(/\s+/)[0];
   const data = useRoutineData();
@@ -159,25 +161,34 @@ export default function TodayScreen() {
           <Loading />
         ) : (
           <>
-            <ThemedText type="subtitle" style={{ fontSize: 24 }}>
-              {greeting(now)}
-              {firstName ? `, ${firstName}` : ''} 👋
-            </ThemedText>
-
             <GetStarted steps={steps} />
 
             <SectionTitle>Dashboard</SectionTitle>
             <Dashboard tiles={tiles} />
 
             <SectionTitle>Today</SectionTitle>
-            {/* A small, light progress line: the tiles above are the main thing on this page. */}
-            <View style={[hero.card, { backgroundColor: theme.tintSoft }]}>
-              <View style={hero.line}>
-                <ThemedText type="smallBold" themeColor="tint">
-                  {tasks.length && doneCount === tasks.length ? 'All done today 🎉' : `${doneCount} of ${tasks.length} done today`}
+            <View style={[hero.card, { backgroundColor: theme.tint }, glow]}>
+              <ThemedText type="small" style={hero.muted}>
+                {greeting(now)}
+                {firstName ? `, ${firstName}` : ''}
+              </ThemedText>
+              <View>
+                <ThemedText type="title" style={hero.text}>
+                  {doneCount}
+                  <ThemedText type="heading" style={hero.muted}>
+                    {' '}
+                    / {tasks.length}
+                  </ThemedText>
+                </ThemedText>
+                <ThemedText type="small" style={hero.muted}>
+                  {tasks.length && doneCount === tasks.length ? 'All done today 🎉' : 'done today'}
                 </ThemedText>
               </View>
-              <ProgressBar value={tasks.length ? (100 * doneCount) / tasks.length : 0} color={theme.tint} track={theme.card} />
+              <ProgressBar
+                value={tasks.length ? (100 * doneCount) / tasks.length : 0}
+                color="#FFFFFF"
+                track="rgba(255,255,255,0.28)"
+              />
             </View>
 
             <Segmented
@@ -243,6 +254,7 @@ export default function TodayScreen() {
 }
 
 const hero = StyleSheet.create({
-  card: { borderRadius: Radius.md, paddingHorizontal: 14, paddingVertical: 10, gap: Spacing.two },
-  line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  card: { borderRadius: Radius.xl, padding: 20, gap: Spacing.three },
+  text: { color: '#FFFFFF' },
+  muted: { color: 'rgba(255,255,255,0.85)' },
 });
