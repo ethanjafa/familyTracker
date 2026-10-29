@@ -1,6 +1,6 @@
 import { format, getDay } from 'date-fns';
-import { router, Stack } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { useGroceries } from '@/api/groceries';
@@ -53,6 +53,14 @@ export default function TodayScreen() {
   const mealPlans = useMealPlans();
   const groceries = useGroceries();
   const [filter, setFilter] = useState<Filter>('mine');
+  // Reminders are switched on in Settings, so check again whenever Today comes back into view;
+  // otherwise the "Turn on reminders" step would stay unticked and the checklist would never close.
+  const [remindersSet, setRemindersSet] = useState(() => remindersOn(loadReminders()));
+  useFocusEffect(
+    useCallback(() => {
+      setRemindersSet(remindersOn(loadReminders()));
+    }, []),
+  );
   // Reminders are scheduled on this phone; re-apply them so they follow the family's planning day.
   const planningDay = planningDayOf(household);
   useEffect(() => {
@@ -146,7 +154,7 @@ export default function TodayScreen() {
           {
             title: 'Turn on reminders',
             detail: 'A morning nudge and a planning-day nudge, in Settings.',
-            done: remindersOn(loadReminders()),
+            done: remindersSet,
             href: '/settings' as const,
           },
         ]),
