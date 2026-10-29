@@ -40,15 +40,23 @@ export function MealPlanner({ days }: { days: Date[] }) {
   const keys = days.map(toDay);
   const weekPlans = (plans.data ?? []).filter((p) => keys.includes(p.plan_date));
   const planAt = (day: string, slot: MealSlot) => weekPlans.find((p) => p.plan_date === day && p.slot === slot);
-  const plannedThisWeek = new Set(weekPlans.map((p) => p.meal_id).filter(Boolean));
+  // Where each meal is already planned this week. A meal can go on several days (fish twice a week).
+  const thisWeek = new Map<string, string[]>();
+  for (const p of [...weekPlans].sort((a, b) => a.plan_date.localeCompare(b.plan_date) || a.slot.localeCompare(b.slot))) {
+    if (!p.meal_id) continue;
+    thisWeek.set(p.meal_id, [...(thisWeek.get(p.meal_id) ?? []), `${format(fromDay(p.plan_date), 'EEE')} ${p.slot}`]);
+  }
   const lastHad = new Map<string, string>();
   for (const p of plans.data ?? []) {
     if (p.meal_id && p.plan_date < keys[0] && (lastHad.get(p.meal_id) ?? '') < p.plan_date) lastHad.set(p.meal_id, p.plan_date);
   }
-  // Longest since you last had it first, so meals don't repeat.
-  const backlog = [...(meals.data ?? [])]
-    .filter((m) => !plannedThisWeek.has(m.id))
-    .sort((a, b) => (lastHad.get(a.id) ?? '').localeCompare(lastHad.get(b.id) ?? ''));
+  // Every meal stays available. Ones not planned yet this week come first, longest since you last
+  // had them first, so meals don't repeat by accident.
+  const backlog = [...(meals.data ?? [])].sort(
+    (a, b) =>
+      Number(thisWeek.has(a.id)) - Number(thisWeek.has(b.id)) ||
+      (lastHad.get(a.id) ?? '').localeCompare(lastHad.get(b.id) ?? ''),
+  );
 
   const flash = (message: string) => {
     setNote(message);
@@ -77,7 +85,9 @@ export function MealPlanner({ days }: { days: Date[] }) {
       ahead.map((k) => ({ day: k, slot: 'dinner' as const })).find((s) => !planAt(s.day, s.slot)?.meal_id) ??
       ahead.map((k) => ({ day: k, slot: 'lunch' as const })).find((s) => !planAt(s.day, s.slot)?.meal_id);
     if (!free) return showAlert('Week is full', 'Every lunch and dinner this week is already planned.');
-    place(pickRandom(backlog), free.day, free.slot);
+    // Prefer something not on this week yet; repeat only when everything already is.
+    const fresh = backlog.filter((m) => !thisWeek.has(m.id));
+    place(pickRandom(fresh.length ? fresh : backlog), free.day, free.slot);
   };
 
   const addIdea = (idea: (typeof MEAL_IDEAS)[number]) =>
@@ -163,7 +173,13 @@ export function MealPlanner({ days }: { days: Date[] }) {
                     <View style={{ flex: 1 }}>
                       <ThemedText style={{ fontWeight: 600 }}>{m.name}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {weeks === null ? 'Never planned' : weeks <= 1 ? 'Had last week' : `Last had ${weeks} weeks ago`}
+                        {thisWeek.has(m.id)
+                          ? `This week: ${thisWeek.get(m.id)!.join(', ')}`
+                          : weeks === null
+                            ? 'Never planned'
+                            : weeks <= 1
+                              ? 'Had last week'
+                              : `Last had ${weeks} weeks ago`}
                         {m.ingredients.length ? ` · ${m.ingredients.length} ingredients` : ''}
                       </ThemedText>
                     </View>

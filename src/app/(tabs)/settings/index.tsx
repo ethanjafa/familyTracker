@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, Share, View } from 'react-native';
 
 import { createInvite, removeMember, setPlanningDay, updateHousehold, updateProfile } from '@/api/household';
+import { ReminderSettings } from '@/components/reminder-settings';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar, Button, Card, Dropdown, Field, Screen, SectionTitle, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,6 +11,7 @@ import { deleteAccount, signOut } from '@/lib/auth';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
 import { PLANNING_DAY_NAMES, planningDayOf } from '@/lib/planning';
+import { refreshReminders } from '@/lib/reminders';
 import type { Member } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -51,7 +53,9 @@ export default function SettingsScreen() {
   };
 
   const changePlanningDay = (day: number) =>
-    setPlanningDay(household.id, day).catch((e) =>
+    setPlanningDay(household.id, day)
+      .then(() => refreshReminders(day))
+      .catch((e) =>
       showAlert(
         'Could not save',
         errorMessage(e).includes('set_planning_day')
@@ -138,6 +142,9 @@ export default function SettingsScreen() {
             That day, everyone gets a ⛵ Plan the week together task on Today.
           </ThemedText>
         </Card>
+
+        <SectionTitle>Reminders</SectionTitle>
+        <ReminderSettings planningDay={planningDayOf(household)} />
 
         <SectionTitle>Account</SectionTitle>
         <Button title="Sign out" variant="secondary" onPress={signOut} />

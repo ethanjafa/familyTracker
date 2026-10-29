@@ -1,7 +1,7 @@
 import { format, getDay } from 'date-fns';
 import { router, Stack } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useGroceries } from '@/api/groceries';
 import { useMealPlans, useMeals } from '@/api/meals';
@@ -29,6 +29,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { toDay, weekStart } from '@/lib/dates';
 import { assigneesOn, isDueToday } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
+import { loadReminders, refreshReminders, remindersOn } from '@/lib/reminders';
 import { sortTodos, todoDay } from '@/lib/projects';
 import { routinesFor, streak } from '@/lib/scoring';
 import { applyOrder, loadOrder, mergeOrder, saveOrder } from '@/lib/today-order';
@@ -52,6 +53,11 @@ export default function TodayScreen() {
   const mealPlans = useMealPlans();
   const groceries = useGroceries();
   const [filter, setFilter] = useState<Filter>('mine');
+  // Reminders are scheduled on this phone; re-apply them so they follow the family's planning day.
+  const planningDay = planningDayOf(household);
+  useEffect(() => {
+    refreshReminders(planningDay).catch(() => {});
+  }, [planningDay]);
   // Your own order of routines and to-dos, set by holding and dragging.
   const [order, setOrder] = useState(() => loadOrder(userId));
   const reorder = (keys: string[]) => {
@@ -133,6 +139,17 @@ export default function TodayScreen() {
         (items.data ?? []).some((i) => i.assignee_id),
       href: '/plan',
     },
+    // Only the phone apps can remind you.
+    ...(Platform.OS === 'web'
+      ? []
+      : [
+          {
+            title: 'Turn on reminders',
+            detail: 'A morning nudge and a planning-day nudge, in Settings.',
+            done: remindersOn(loadReminders()),
+            href: '/settings' as const,
+          },
+        ]),
   ];
 
   const tiles: Tile[] = [

@@ -2,7 +2,7 @@
   "expo": {
     "name": "WhoseTurn",
     "slug": "whoseturn",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "whoseturn",
@@ -42,7 +42,13 @@
       "expo-sqlite",
       "expo-apple-authentication",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#1F9D66"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
