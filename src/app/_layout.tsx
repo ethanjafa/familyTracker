@@ -98,6 +98,7 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="category-form" options={modal} />
           <Stack.Screen name="create" options={modal} />
+          <Stack.Screen name="join-family" options={modal} />
           <Stack.Screen name="routine-form" options={modal} />
           <Stack.Screen name="todo-category-form" options={modal} />
           <Stack.Screen name="todo-form" options={modal} />

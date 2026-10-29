@@ -124,6 +124,11 @@ export default function SettingsScreen() {
             </View>
           ))}
           <Button title="Invite a family member" variant="secondary" onPress={invite} loading={busy === 'invite'} />
+          <Pressable onPress={() => router.push('/join-family')} hitSlop={8} style={{ alignSelf: 'center', paddingTop: 4 }}>
+            <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
+              Join another family with a code
+            </ThemedText>
+          </Pressable>
         </Card>
 
         <SectionTitle>Planning day</SectionTitle>

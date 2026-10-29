@@ -63,6 +63,17 @@ export async function joinHousehold(code: string) {
   await queryClient.invalidateQueries({ queryKey: ['households'] });
 }
 
+/**
+ * Move into the family behind an invite code. `bringItems` (only when you're alone in your
+ * current family) brings your routines, to-dos, meals and groceries along; otherwise you leave
+ * and only your 🔒 personal items come with you. Everything is reloaded for the new family.
+ */
+export async function switchHousehold(code: string, bringItems: boolean) {
+  const { error } = await supabase.rpc('switch_household', { invite_code: code, bring_items: bringItems });
+  if (error) throw error;
+  await queryClient.invalidateQueries();
+}
+
 export async function createInvite(householdId: string) {
   const { data, error } = await supabase.rpc('create_invite', { hid: householdId });
   if (error) throw error;

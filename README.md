@@ -25,6 +25,7 @@ Routines, to-dos, meals and scorecards for the whole family, built with Expo (Re
    - [20261030000000_grocery_backlog.sql](supabase/migrations/20261030000000_grocery_backlog.sql): a backlog list in groceries
    - [20261031000000_private_items.sql](supabase/migrations/20261031000000_private_items.sql): 🔒 personal routines and to-dos, hidden from the rest of the family
    - [20261101000000_delete_account.sql](supabase/migrations/20261101000000_delete_account.sql): deleting your account from Settings (required by the app stores)
+   - [20261102000000_switch_household.sql](supabase/migrations/20261102000000_switch_household.sql): joining another family from Settings
 3. Go to **Authentication → URL Configuration → Redirect URLs** and add:
    - `exp://**` (Expo Go during development)
    - `whoseturn://**` (installed builds)
