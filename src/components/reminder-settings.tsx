@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { Platform, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Card, ChipGroup, Label, styles } from '@/components/ui';
+import { Card, styles } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
-import { loadReminders, type Reminders, remindersOn, setReminders } from '@/lib/reminders';
-
-const TIMES = ['07:00', '07:30', '08:00', '09:00', '18:00', '20:00'].map((t) => ({ value: t, label: t }));
+import { loadReminders, type Reminders, setReminders } from '@/lib/reminders';
 
 /** Settings → Reminders: a morning nudge and a planning-day nudge, scheduled on this phone. */
 export function ReminderSettings({ planningDay }: { planningDay: number }) {
@@ -52,14 +50,8 @@ export function ReminderSettings({ planningDay }: { planningDay: number }) {
 
   return (
     <Card style={{ gap: 14 }}>
-      {row('Morning reminder', 'Every day: a nudge to check today’s list.', r.morning, 'morning')}
-      {row('Planning day reminder', 'On your planning day: time to plan the week.', r.planning, 'planning')}
-      {remindersOn(r) && (
-        <View style={{ gap: 8 }}>
-          <Label>Time</Label>
-          <ChipGroup options={TIMES} value={r.time} onChange={(time) => change({ ...r, time })} />
-        </View>
-      )}
+      {row('Morning reminder', 'Every day at 9:00: a nudge to check today’s list.', r.morning, 'morning')}
+      {row('Planning day reminder', 'On your planning day at 16:00: time to plan the week.', r.planning, 'planning')}
     </Card>
   );
 }

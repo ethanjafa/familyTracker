@@ -1,6 +1,6 @@
 import { format, getDay } from 'date-fns';
-import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, Stack } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { useGroceries } from '@/api/groceries';
@@ -29,7 +29,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { toDay, weekStart } from '@/lib/dates';
 import { assigneesOn, isDueToday } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
-import { loadReminders, refreshReminders, remindersOn } from '@/lib/reminders';
+import { refreshReminders, useRemindersOn } from '@/lib/reminders';
 import { sortTodos, todoDay } from '@/lib/projects';
 import { routinesFor, streak } from '@/lib/scoring';
 import { applyOrder, loadOrder, mergeOrder, saveOrder } from '@/lib/today-order';
@@ -53,14 +53,9 @@ export default function TodayScreen() {
   const mealPlans = useMealPlans();
   const groceries = useGroceries();
   const [filter, setFilter] = useState<Filter>('mine');
-  // Reminders are switched on in Settings, so check again whenever Today comes back into view;
-  // otherwise the "Turn on reminders" step would stay unticked and the checklist would never close.
-  const [remindersSet, setRemindersSet] = useState(() => remindersOn(loadReminders()));
-  useFocusEffect(
-    useCallback(() => {
-      setRemindersSet(remindersOn(loadReminders()));
-    }, []),
-  );
+  // Reminders are switched on in Settings; this updates the moment they change, so the
+  // "Turn on reminders" step ticks (and the checklist can close) without a refresh.
+  const remindersSet = useRemindersOn();
   // Reminders are scheduled on this phone; re-apply them so they follow the family's planning day.
   const planningDay = planningDayOf(household);
   useEffect(() => {

@@ -3,5 +3,6 @@ export type Reminders = { morning: boolean; planning: boolean; time: string };
 
 export const loadReminders = (): Reminders => ({ morning: false, planning: false, time: '08:00' });
 export const remindersOn = (r: Reminders) => r.morning || r.planning;
+export const useRemindersOn = () => false;
 export const setReminders = async (_r: Reminders, _planningDay: number) => false;
 export const refreshReminders = async (_planningDay: number) => {};

@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { AndroidImportance } from 'expo-notifications';
+import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 /**
@@ -7,6 +8,10 @@ import { Platform } from 'react-native';
  * nudge on the family's planning day. The choice is per device, like any alarm.
  */
 export type Reminders = { morning: boolean; planning: boolean; time: string };
+
+/** Fixed times, so there's nothing to choose: a 9 am morning nudge, a 4 pm planning-day nudge. */
+const MORNING = { hour: 9, minute: 0 };
+const PLANNING = { hour: 16, minute: 0 };
 
 const KEY = 'reminders';
 const DEFAULTS: Reminders = { morning: false, planning: false, time: '08:00' };
@@ -24,15 +29,28 @@ export function loadReminders(): Reminders {
   }
 }
 
+// Screens showing "are reminders on?" (like Today's checklist) update the moment they change.
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
 function saveReminders(r: Reminders) {
   try {
     localStorage.setItem(KEY, JSON.stringify(r));
   } catch {
     // Not remembered on this device; reminders stay as scheduled until the app reschedules them.
   }
+  listeners.forEach((l) => l());
 }
 
 export const remindersOn = (r: Reminders) => r.morning || r.planning;
+
+/** Whether any reminder is on, kept up to date as soon as it changes (e.g. in Settings). */
+export function useRemindersOn() {
+  return useSyncExternalStore(subscribe, () => remindersOn(loadReminders()));
+}
 
 /** Ask for permission (the first time). Returns whether reminders can be shown. */
 async function allowed() {
@@ -66,18 +84,17 @@ export async function refreshReminders(planningDay: number) {
 
 async function schedule(r: Reminders, planningDay: number) {
   await Notifications.cancelAllScheduledNotificationsAsync();
-  const [hour, minute] = r.time.split(':').map(Number);
   if (r.morning) {
     await Notifications.scheduleNotificationAsync({
       content: { title: 'Good morning ☀️', body: "Here's what's on your list today." },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute, channelId: CHANNEL },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, ...MORNING, channelId: CHANNEL },
     });
   }
   if (r.planning) {
     await Notifications.scheduleNotificationAsync({
       content: { title: '⛵ It’s planning day', body: 'Plan the week together: who does what this week?' },
       // Weekdays here run 1 (Sunday) to 7 (Saturday); ours run 0 (Sunday) to 6.
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: planningDay + 1, hour, minute, channelId: CHANNEL },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: planningDay + 1, ...PLANNING, channelId: CHANNEL },
     });
   }
 }
