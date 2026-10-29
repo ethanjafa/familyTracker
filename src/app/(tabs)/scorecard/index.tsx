@@ -90,7 +90,7 @@ export default function ScorecardScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Scorecard' }} />
+      <Stack.Screen options={{ title: 'Track' }} />
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
         {totalContribution > 0 && (
           <>

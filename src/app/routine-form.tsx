@@ -164,7 +164,7 @@ function RoutineFormBody({
   };
 
   const remove = async () => {
-    if (!(await confirmAsync('Delete routine?', 'The routine and all of its check-ins will be deleted from every scorecard.'))) return;
+    if (!(await confirmAsync('Delete routine?', 'The routine and all of its check-ins will be deleted, including from Track.'))) return;
     try {
       await deleteRoutine(existing!.id);
       router.back();
@@ -277,7 +277,7 @@ function RoutineFormBody({
             <ThemedText type="small" themeColor="textSecondary">
               {pickedDays
                 ? `${pickedDays.length} of ${schedule.times} picked. Plan uses these days until you change a week.`
-                : `Any ${schedule.times} days ${schedule.type === 'weekly' ? 'each week' : 'in two weeks'}. Pick them each week in Plan.`}
+                : `Any ${schedule.times} days ${schedule.type === 'weekly' ? 'each week' : 'in two weeks'}. Pick them each week in Assign.`}
             </ThemedText>
           </>
         )}

@@ -127,7 +127,7 @@ export default function TodayScreen() {
     },
     {
       title: 'Plan who does what',
-      detail: 'Open Plan and tap the boxes to give each task an owner.',
+      detail: 'Open Assign and tap the boxes to give each task an owner.',
       done:
         ownRoutines.some((r) => r.assignee_ids.length > 0 || (r.plans?.size ?? 0) > 0) ||
         (items.data ?? []).some((i) => i.assignee_id),

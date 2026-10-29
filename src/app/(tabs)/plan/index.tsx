@@ -14,7 +14,7 @@ type Week = 'this' | 'next';
 const HINT_FLAG = 'plan-tap-hint-seen';
 
 /**
- * Plan: who does what this week or next. Planning itself is the "Plan the week together" task
+ * Assign: who does what this week or next. Planning itself is the "Plan the week together" task
  * on Today; meals and groceries are on Today's dashboard.
  */
 export default function PlanScreen() {
@@ -31,7 +31,7 @@ export default function PlanScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Plan' }} />
+      <Stack.Screen options={{ title: 'Assign' }} />
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
         {showHint && (
           <Card style={{ gap: 10 }}>

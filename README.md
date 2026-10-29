@@ -8,7 +8,7 @@ Routines, to-dos, meals and scorecards for the whole family, built with Expo (Re
 - **To do**: categories of to-dos (e.g. *Home repairs → Fix the tap*), each with an owner and a target date.
 - **Personal items**: tag any routine or to-do 🔒 Personal and only you can see it (enforced by Row Level Security); it's automatically yours. Everything else is shared with the household.
 - **Scorecards**: weekly and monthly scores per person or for the family, an 8-week trend, per-category breakdown, streaks, who did what, and rule-based feedback.
-- **Plan**: one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and to-dos; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Need**, **Have** or **Backlog**, filled automatically from planned meals, with a **Store mode** for shopping.
+- **Assign** (was Plan): one table for this week or next. Rows are family routines, who makes lunch and cooks dinner, and to-dos; tap a box to change who's responsible (changes apply to that week only). Rows that still need someone are marked ⚠️. **Plan next week** checks off the family's weekly planning task. **Meals** picks lunches and dinners from a meal backlog (or 🎡 spin); **Groceries** is one household list where each item is **Need**, **Have** or **Backlog**, filled automatically from planned meals, with a **Store mode** for shopping.
 - **Live sync**: changes appear on every family member's phone through Supabase Realtime.
 
 ## 1. Create the Supabase backend (one time)
@@ -51,9 +51,9 @@ The first person signs in, creates the household, and on the **Settings** tab ta
 ```
 src/app/                 screens (Expo Router)
   (tabs)/(today)         Today: what's due, one tap to check off
-  (tabs)/plan            the week table: who does each routine, meal and to-do
-  (tabs)/goals           routines (categories → routines) and to-dos (categories → to-dos)
-  (tabs)/scorecard       scores, trends, feedback
+  (tabs)/plan            Assign: the week table: who does each routine, meal and to-do
+  (tabs)/goals           Routines: routines (categories → routines) and to-dos (categories → to-dos)
+  (tabs)/scorecard       Track: scores, trends, feedback
   (tabs)/settings        family members (invite/remove), profile
   *-form.tsx             create/edit modals
 src/api/                 Supabase queries and mutations (TanStack Query)

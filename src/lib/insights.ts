@@ -111,7 +111,7 @@ export function buildInsights(
   // 6. To-dos past their target date.
   for (const t of todos) {
     if (t.overdue) {
-      out.push({ id: `overdue-${t.name}`, tone: 'warn', icon: '⏰', title: `${t.name}: ${t.overdue} to-do${t.overdue > 1 ? 's' : ''} still open from earlier days`, body: 'Do it, or move it to another day in Plan.' });
+      out.push({ id: `overdue-${t.name}`, tone: 'warn', icon: '⏰', title: `${t.name}: ${t.overdue} to-do${t.overdue > 1 ? 's' : ''} still open from earlier days`, body: 'Do it, or move it to another day in Assign.' });
     }
   }
 

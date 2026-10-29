@@ -20,16 +20,17 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="checkmark.circle" md="check_circle" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="plan">
-        <NativeTabs.Trigger.Label>Plan</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="calendar" md="calendar_month" />
-      </NativeTabs.Trigger>
+      {/* Create → assign → track: Routines holds what you do, Assign decides who, Track shows how it went. */}
       <NativeTabs.Trigger name="goals">
         <NativeTabs.Trigger.Label>Routines</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="target" md="flag" />
+        <NativeTabs.Trigger.Icon sf="repeat" md="repeat" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="plan">
+        <NativeTabs.Trigger.Label>Assign</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="person.2" md="group" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="scorecard">
-        <NativeTabs.Trigger.Label>Scorecard</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Track</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.bar" md="bar_chart" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="settings">
