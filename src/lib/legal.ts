@@ -5,4 +5,4 @@
 export const SUPPORT_EMAIL = 'WhoseTurn.support@gmail.com';
 
 /** The live web app, where these pages are public. */
-export const WEB_URL = 'https://whoseturn.expo.app';
+export const WEB_URL = 'https://ehsanjafa-whoseturn.expo.app';

@@ -20,6 +20,10 @@ import { HouseholdProvider, useHouseholdState } from '@/providers/household-prov
 
 SplashScreen.preventAutoHideAsync();
 
+const PUBLIC_WEB_PAGES = ['/privacy', '/delete-account'];
+/** The address a web visitor opened, before the navigator falls back to another screen. */
+const OPENED_PATH = typeof window !== 'undefined' ? window.location?.pathname : undefined;
+
 const fonts = {
   regular: { fontFamily: FontFamilies[400], fontWeight: '400' },
   medium: { fontFamily: FontFamilies[500], fontWeight: '500' },
@@ -69,12 +73,13 @@ function RootNavigator() {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  // In the phone apps, signed-out people always start on sign-in, whatever screen the navigator
-  // falls back to. (On the web the public privacy and delete-account pages stay reachable.)
+  // Signed-out people always start on sign-in, whatever screen the navigator falls back to.
+  // On the web, the public privacy and delete-account pages the store listings link to stay reachable.
   const pathname = usePathname();
   useEffect(() => {
-    if (!ready || session || Platform.OS === 'web') return;
-    if (pathname !== '/sign-in') router.replace('/sign-in');
+    if (!ready || session || pathname === '/sign-in') return;
+    if (Platform.OS === 'web' && PUBLIC_WEB_PAGES.includes(pathname) && pathname === OPENED_PATH) return;
+    router.replace('/sign-in');
   }, [ready, session, pathname]);
 
   if (!ready) return null;
