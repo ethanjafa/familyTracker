@@ -20,7 +20,7 @@ import { HouseholdProvider, useHouseholdState } from '@/providers/household-prov
 
 SplashScreen.preventAutoHideAsync();
 
-const PUBLIC_WEB_PAGES = ['/privacy', '/delete-account'];
+const PUBLIC_WEB_PAGES = ['/support', '/privacy', '/delete-account'];
 /** The address a web visitor opened, before the navigator falls back to another screen. */
 const OPENED_PATH = typeof window !== 'undefined' ? window.location?.pathname : undefined;
 
@@ -74,11 +74,12 @@ function RootNavigator() {
   }, [ready]);
 
   // Signed-out people always start on sign-in, whatever screen the navigator falls back to.
-  // On the web, the public privacy and delete-account pages the store listings link to stay reachable.
+  // On the web, the public support, privacy and delete-account pages the store listings link to stay reachable.
   const pathname = usePathname();
   useEffect(() => {
     if (!ready || session || pathname === '/sign-in') return;
-    if (Platform.OS === 'web' && PUBLIC_WEB_PAGES.includes(pathname) && pathname === OPENED_PATH) return;
+    const isPublic = (path?: string) => !!path && PUBLIC_WEB_PAGES.includes(path);
+    if (Platform.OS === 'web' && isPublic(pathname) && isPublic(OPENED_PATH)) return;
     router.replace('/sign-in');
   }, [ready, session, pathname]);
 
@@ -93,6 +94,7 @@ function RootNavigator() {
             store listings link to are here too, after it; signed-in people read them in Settings. */}
         <Stack.Protected guard={!session}>
           <Stack.Screen name="sign-in" />
+          <Stack.Screen name="support" options={{ headerShown: true }} />
           <Stack.Screen name="privacy" options={{ headerShown: true }} />
           <Stack.Screen name="delete-account" options={{ headerShown: true }} />
         </Stack.Protected>
