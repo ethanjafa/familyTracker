@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import { createCategory, deleteRoutine, saveRoutine } from '@/api/routines';
 import { CategoryPicker, NEW_CATEGORY } from '@/components/category-picker';
+import { RoutineHistory } from '@/components/routine-history';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Chip, ChipGroup, Field, Label, Loading, Screen, Segmented, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -338,6 +339,8 @@ function RoutineFormBody({
             )}
           </>
         )}
+
+        {existing && <RoutineHistory routine={existing} logs={data.logIndex.get(existing.id)} userId={userId} />}
 
         <Button title="Save" onPress={save} loading={busy} disabled={!valid} />
         {existing && <Button title="Delete routine" variant="danger" onPress={remove} />}

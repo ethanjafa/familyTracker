@@ -20,17 +20,24 @@ type Props = {
   memberById: Map<string, Member>;
   /** Preview only (e.g. tomorrow): shows the routine without letting anyone check it off. */
   readOnly?: boolean;
+  /** Shown first in the details line, e.g. "Yesterday" for a missed day. */
+  dayLabel?: string;
+  /** Called before the check-in is saved. */
+  onToggle?: () => void;
 };
 
 /** A checkable routine: tap to mark it done, tap again to undo. */
-export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false }: Props) {
+export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false, dayLabel, onToggle }: Props) {
   const theme = useTheme();
   const log = logs?.get(day);
   const status = log?.status;
 
-  const toggle = () => setLog(routine, day, status ? null : 'done', userId);
+  const toggle = () => {
+    onToggle?.();
+    setLog(routine, day, status ? null : 'done', userId);
+  };
 
-  const details: string[] = [`${category.icon} ${category.name}`];
+  const details: string[] = [...(dayLabel ? [dayLabel] : []), `${category.icon} ${category.name}`];
   if (isFlexible(routine.schedule)) {
     const done = completedBetween(logs, periodStart(routine, fromDay(day)), fromDay(day));
     const period = periodName(routine.schedule);

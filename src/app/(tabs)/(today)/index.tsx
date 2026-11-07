@@ -1,4 +1,4 @@
-import { format, getDay } from 'date-fns';
+import { format, getDay, subDays } from 'date-fns';
 import { router, Stack } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
@@ -27,7 +27,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { toDay, weekStart } from '@/lib/dates';
-import { assigneesOn, isDueToday } from '@/lib/schedule';
+import { assigneesOn, isDueToday, wasPlannedOn } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
 import { refreshReminders, useRemindersOn } from '@/lib/reminders';
 import { sortTodos, todoDay } from '@/lib/projects';
@@ -38,6 +38,9 @@ import { useHousehold } from '@/providers/household-provider';
 
 /** Mine = my routines and to-dos (plus unassigned family ones); Family (all) = everyone's. */
 type Filter = 'mine' | 'all';
+
+/** How many days back the Missed section looks. Older days can be fixed in the routine's history. */
+const MISSED_DAYS = 3;
 
 const greeting = (d: Date) => (d.getHours() < 12 ? 'Good morning' : d.getHours() < 18 ? 'Good afternoon' : 'Good evening');
 
@@ -87,6 +90,35 @@ export default function TodayScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, filter, userId, day]);
+
+  // Missed: routines from the last few days that were on someone's plan but never ticked.
+  // Ones ticked here stay listed (ticked) until you leave, so a wrong tap can be undone.
+  const [caughtUp, setCaughtUp] = useState<Set<string>>(() => new Set());
+  const missed = useMemo(() => {
+    const mine = new Map(routinesFor(userId, data.routines, data.categoryById).map((r) => [r.id, r]));
+    const out: { key: string; routine: Routine; day: string; label: string }[] = [];
+    for (let back = 1; back <= MISSED_DAYS; back++) {
+      const d = subDays(now, back);
+      const dKey = toDay(d);
+      const label = back === 1 ? 'Yesterday' : format(d, 'EEEE');
+      for (const r of data.routines) {
+        const category = data.categoryById.get(r.category_id);
+        if (!category || r.id === household.planning_routine_id) continue;
+        const key = `${r.id}|${dKey}`;
+        if (data.logIndex.get(r.id)?.has(dKey) && !caughtUp.has(key)) continue;
+        const own = mine.get(r.id);
+        const counts =
+          filter === 'all'
+            ? wasPlannedOn(r, d)
+            : own
+              ? wasPlannedOn(own, d)
+              : category.visibility === 'family' && wasPlannedOn(r, d) && assigneesOn(r, d).length === 0;
+        if (counts) out.push({ key, routine: r, day: dKey, label });
+      }
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, filter, userId, day, caughtUp]);
 
   // To-dos for today: today is their day (unfinished ones move on from earlier days). Ones finished today stay, ticked.
   const categoryById = new Map((projects.data ?? []).map((p) => [p.id, p]));
@@ -265,6 +297,31 @@ export default function TodayScreen() {
               <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
                 Tap to check off · hold and drag to reorder
               </ThemedText>
+            )}
+
+            {missed.length > 0 && (
+              <>
+                <SectionTitle>Missed</SectionTitle>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Not ticked in the last {MISSED_DAYS} days. Did it get done? Tap to tick it for that day.
+                </ThemedText>
+                <Card style={{ gap: 0, paddingVertical: 4 }}>
+                  {missed.map((m) => (
+                    <RoutineRow
+                      key={m.key}
+                      routine={m.routine}
+                      category={data.categoryById.get(m.routine.category_id)!}
+                      day={m.day}
+                      logs={data.logIndex.get(m.routine.id)}
+                      streak={0}
+                      userId={userId}
+                      memberById={memberById}
+                      dayLabel={m.label}
+                      onToggle={() => setCaughtUp((s) => (s.has(m.key) ? s : new Set(s).add(m.key)))}
+                    />
+                  ))}
+                </Card>
+              </>
             )}
           </>
         )}

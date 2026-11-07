@@ -164,6 +164,16 @@ export function logValue(log: RoutineLog | undefined): number | null {
 }
 
 /**
+ * Whether a routine was on a person's plan that day (its own day, not just "sometime this week").
+ * Flexible routines count only on days they were placed on. Used to catch up on missed days.
+ */
+export function wasPlannedOn(routine: Routine, day: Date) {
+  if (routine.archived_at || isBefore(day, fromDay(routine.start_date))) return false;
+  if (!isFlexible(routine.schedule)) return isFixedDueOn(routine, day);
+  return hasPlacedDays(routine, day) && plannedFor(routine, day);
+}
+
+/**
  * Whether a routine belongs on the Today list. Flexible routines show on their days when they
  * have some (default or planned); otherwise while the period's target isn't met. Logged = shown.
  */
