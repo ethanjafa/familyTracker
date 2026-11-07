@@ -28,6 +28,15 @@ const SECTIONS: { title: string; body: string[] }[] = [
     ],
   },
   {
+    title: 'AI assistants',
+    body: [
+      'You can choose to connect an AI assistant, such as Claude or ChatGPT, to your WhoseTurn account. Nothing is shared with any assistant unless you connect it and tap Allow.',
+      'A connected assistant acts as you: it can see and change only what you can in the app (your family’s routines, plans, to-dos and grocery list, and your own 🔒 personal items), and only when you ask it to.',
+      'What you say to the assistant, and what it reads from WhoseTurn to answer you, is handled by the assistant’s provider under their own privacy policy.',
+      'You can disconnect an assistant at any time in its settings.',
+    ],
+  },
+  {
     title: 'Deleting your data',
     body: [
       'You can delete your account at any time in Settings → Delete my account.',

@@ -1,4 +1,4 @@
-/** Sign in with Apple is iPhone-only (see apple-sign-in.ios.tsx); Android and web don't show it. */
+/** Sign in with Apple: native on iPhone (apple-sign-in.ios.tsx), a web button (apple-sign-in.web.tsx); not on Android. */
 export function AppleSignInButton(_props: { onError: (e: unknown) => void }) {
   return null;
 }

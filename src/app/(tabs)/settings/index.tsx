@@ -146,6 +146,16 @@ export default function SettingsScreen() {
         <SectionTitle>Reminders</SectionTitle>
         <ReminderSettings planningDay={planningDayOf(household)} />
 
+        <SectionTitle>AI assistant</SectionTitle>
+        <Card onPress={() => router.push('/settings/ai')}>
+          <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+            ✨ Connect Claude
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Ask Claude to plan the week, share out chores or add to the grocery list.
+          </ThemedText>
+        </Card>
+
         <SectionTitle>Account</SectionTitle>
         <Button title="Sign out" variant="secondary" onPress={signOut} />
         <Button title="Delete my account" variant="danger" onPress={removeAccount} />

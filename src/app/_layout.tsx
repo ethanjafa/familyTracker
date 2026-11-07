@@ -14,15 +14,17 @@ import { Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { Colors, FontFamilies } from '@/constants/theme';
+import { CONSENT_PATH, pendingConsentRequest, rememberConsentRequest } from '@/lib/oauth-consent';
 import { queryClient } from '@/lib/query-client';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { HouseholdProvider, useHouseholdState } from '@/providers/household-provider';
 
 SplashScreen.preventAutoHideAsync();
 
-const PUBLIC_WEB_PAGES = ['/support', '/privacy', '/delete-account'];
+const PUBLIC_WEB_PAGES = ['/support', '/privacy', '/delete-account', '/ai'];
 /** The address a web visitor opened, before the navigator falls back to another screen. */
 const OPENED_PATH = typeof window !== 'undefined' ? window.location?.pathname : undefined;
+rememberConsentRequest();
 
 const fonts = {
   regular: { fontFamily: FontFamilies[400], fontWeight: '400' },
@@ -83,6 +85,13 @@ function RootNavigator() {
     router.replace('/sign-in');
   }, [ready, session, pathname]);
 
+  // Signed in partway through connecting an AI assistant: back to its consent screen.
+  useEffect(() => {
+    const pending = pendingConsentRequest();
+    if (!ready || !session || !pending || pathname === CONSENT_PATH) return;
+    router.replace({ pathname: CONSENT_PATH, params: { authorization_id: pending } });
+  }, [ready, session, pathname]);
+
   if (!ready) return null;
 
   const modal = { presentation: 'modal', headerShown: true } as const;
@@ -116,6 +125,9 @@ function RootNavigator() {
           <Stack.Screen name="store-mode" options={modal} />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
+        {/* The shareable "connect Claude" page: open signed in or out. */}
+        <Stack.Screen name="ai" options={{ headerShown: true }} />
+        <Stack.Screen name="oauth/consent" options={{ headerShown: true, title: 'Connect an assistant' }} />
       </Stack>
     </ThemeProvider>
   );
