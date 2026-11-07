@@ -6,7 +6,7 @@ import { AiConnectGuide } from '@/components/ai-connect-guide';
 export default function SettingsAiScreen() {
   return (
     <>
-      <Stack.Screen options={{ title: 'Connect Claude' }} />
+      <Stack.Screen options={{ title: 'Claude' }} />
       <AiConnectGuide privacyHref="/settings/privacy" />
     </>
   );

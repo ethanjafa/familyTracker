@@ -1,28 +1,21 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Linking, Platform, Share, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Screen } from '@/components/ui';
+import { useTheme } from '@/hooks/use-theme';
 import { MCP_URL } from '@/lib/legal';
 
-const STEPS = [
-  'Open Claude on the web (claude.ai) and go to Connectors.',
-  'Choose “Add custom connector”. Name it WhoseTurn and paste the link above.',
-  'Click Connect, sign in with the account you use in WhoseTurn, and tap Allow.',
-  'Done. It also works in the Claude phone app, signed in to the same Claude account.',
-];
-
 const EXAMPLES = [
-  'Who’s doing what in our family this week?',
-  'Give Tuesday’s dishes to Sara and Thursday’s to me.',
-  'Add a routine: water the plants every Monday and Thursday.',
-  'Add milk, eggs and bread to the grocery list.',
-  'What’s left on my to-do list?',
+  'Who’s doing what this week?',
+  'Give Tuesday’s dishes to me.',
+  'Add milk and eggs to the grocery list.',
 ];
 
 /** How to connect Claude to WhoseTurn: on the public /ai page and in Settings. */
 export function AiConnectGuide({ privacyHref }: { privacyHref: '/privacy' | '/settings/privacy' }) {
+  const theme = useTheme();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -42,68 +35,79 @@ export function AiConnectGuide({ privacyHref }: { privacyHref: '/privacy' | '/se
 
   return (
     <Screen>
-      <ThemedText type="subtitle">Plan your family’s week with Claude</ThemedText>
-      <ThemedText themeColor="textSecondary">
-        Connect Claude, the AI assistant, to WhoseTurn and just ask: who’s on dishes, what’s for this week, what to buy.
-        Changes show up in everyone’s WhoseTurn app straight away.
+      <ThemedText type="subtitle">Connect to Claude</ThemedText>
+
+      <Card>
+        <Step n={1} title="Copy the WhoseTurn link">
+          <Button title={copied ? 'Copied ✓' : 'Copy link'} onPress={copy} />
+        </Step>
+
+        <Step n={2} title="Add it in Claude">
+          <ThemedText type="small" themeColor="textSecondary">
+            Open Claude, go to Connectors and tap “Add custom connector”. Name it WhoseTurn and paste the link.
+          </ThemedText>
+          <Button title="Open Claude" variant="secondary" onPress={() => Linking.openURL('https://claude.ai')} />
+        </Step>
+
+        <Step n={3} title="Tap Connect, sign in to WhoseTurn and tap Allow" />
+      </Card>
+
+      <ThemedText type="heading" style={{ fontSize: 17 }}>
+        Then ask Claude
+      </ThemedText>
+      <View style={{ gap: 8 }}>
+        {EXAMPLES.map((e) => (
+          <View
+            key={e}
+            style={{
+              alignSelf: 'flex-end',
+              maxWidth: '85%',
+              backgroundColor: theme.tintSoft,
+              borderRadius: 18,
+              borderBottomRightRadius: 4,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+            }}>
+            <ThemedText style={{ color: theme.tint, fontWeight: 600 }}>{e}</ThemedText>
+          </View>
+        ))}
+      </View>
+
+      <ThemedText type="small" themeColor="textSecondary">
+        Use ChatGPT? You can add the same link there as a custom connector. This may need a paid ChatGPT plan.
       </ThemedText>
 
-      <Card>
-        <ThemedText type="smallBold" style={{ fontSize: 16 }}>
-          Your connector link
-        </ThemedText>
-        <ThemedText type="small" selectable style={{ fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }) }}>
-          {MCP_URL}
-        </ThemedText>
-        <Button title={copied ? 'Copied ✓' : Platform.OS === 'web' ? 'Copy link' : 'Copy or share link'} onPress={copy} />
-        <Button
-          title="Open Claude"
-          variant="secondary"
-          onPress={() => Linking.openURL('https://claude.ai')}
-        />
-      </Card>
-
-      <Card>
-        <ThemedText type="smallBold" style={{ fontSize: 16 }}>
-          How to connect
-        </ThemedText>
-        <View style={{ gap: 8 }}>
-          {STEPS.map((s, i) => (
-            <ThemedText key={s} type="small" themeColor="textSecondary">
-              {i + 1}. {s}
-            </ThemedText>
-          ))}
-        </View>
-      </Card>
-
-      <Card>
-        <ThemedText type="smallBold" style={{ fontSize: 16 }}>
-          Things to ask
-        </ThemedText>
-        <View style={{ gap: 6 }}>
-          {EXAMPLES.map((e) => (
-            <ThemedText key={e} type="small" themeColor="textSecondary">
-              “{e}”
-            </ThemedText>
-          ))}
-        </View>
-      </Card>
-
-      <Card>
-        <ThemedText type="smallBold" style={{ fontSize: 16 }}>
-          Your privacy
-        </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Claude acts as you: it sees and changes only what you can in WhoseTurn, and only when you ask. Your 🔒 personal
-          items stay yours. Each family member connects their own Claude, and anyone can disconnect at any time in
-          Claude’s Connectors.
-        </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary" style={{ textAlign: 'center' }}>
+        The assistant sees and changes only what you can in WhoseTurn.{' '}
         <Link href={privacyHref} style={{ textDecorationLine: 'underline' }}>
-          <ThemedText type="small" themeColor="tint" style={{ fontWeight: 700 }}>
-            Read the privacy policy
-          </ThemedText>
+          Privacy
         </Link>
-      </Card>
+      </ThemedText>
     </Screen>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children?: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 6 }}>
+      <View
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 14,
+          backgroundColor: theme.tint,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+        <ThemedText style={{ color: theme.onTint, fontWeight: 800 }}>{n}</ThemedText>
+      </View>
+      <View style={{ flex: 1, gap: 8, paddingTop: 3 }}>
+        <ThemedText type="smallBold" style={{ fontSize: 16 }}>
+          {title}
+        </ThemedText>
+        {children}
+      </View>
+    </View>
   );
 }
