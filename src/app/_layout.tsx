@@ -95,22 +95,25 @@ function RootNavigator() {
   if (!ready) return null;
 
   const modal = { presentation: 'modal', headerShown: true } as const;
+  // Where a locked screen sends you. Without this, expo-router falls back to the first open route
+  // in filesystem order, which is the public /ai page, not onboarding.
+  const home = !session ? '/sign-in' : !household ? '/onboarding' : '/';
 
   return (
     <ThemeProvider value={navTheme(colorScheme === 'dark')}>
       <Stack screenOptions={{ headerShown: false }}>
         {/* Signed out: sign-in comes first, so it's where the app opens. The public pages the app
             store listings link to are here too, after it; signed-in people read them in Settings. */}
-        <Stack.Protected guard={!session}>
+        <Stack.Protected guard={!session} redirectTo={home}>
           <Stack.Screen name="sign-in" />
           <Stack.Screen name="support" options={{ headerShown: true }} />
           <Stack.Screen name="privacy" options={{ headerShown: true }} />
           <Stack.Screen name="delete-account" options={{ headerShown: true }} />
         </Stack.Protected>
-        <Stack.Protected guard={!!session && !household}>
+        <Stack.Protected guard={!!session && !household} redirectTo={home}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
-        <Stack.Protected guard={!!session && !!household}>
+        <Stack.Protected guard={!!session && !!household} redirectTo={home}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="category-form" options={modal} />
           <Stack.Screen name="create" options={modal} />
