@@ -5,17 +5,34 @@ import { Pressable, View } from 'react-native';
 
 import { useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Card, Chip, Loading, ProgressBar, Screen, ScorePill, SectionTitle, styles, useBandColor } from '@/components/ui';
+import {
+  Avatar,
+  BarLegend,
+  type BarPart,
+  BarParts,
+  Card,
+  Chip,
+  hasParts,
+  Loading,
+  ProgressBar,
+  Screen,
+  ScorePill,
+  SectionTitle,
+  styles,
+  useBandColor,
+} from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDay, today, weekStart } from '@/lib/dates';
 import { buildInsights } from '@/lib/insights';
 import { categoryStats } from '@/lib/projects';
 import { assigneesOn } from '@/lib/schedule';
-import { band, familyRoutines, pct, routinesFor, scoreRoutines } from '@/lib/scoring';
+import { band, creditByPerson, familyRoutines, pct, routinesFor, scoreRoutines } from '@/lib/scoring';
 import { useHousehold } from '@/providers/household-provider';
 
 const FAMILY = 'family';
+/** To-dos done with nobody assigned. */
+const ANYONE = 'anyone';
 
 export default function ScorecardScreen() {
   const theme = useTheme();
@@ -45,18 +62,38 @@ export default function ScorecardScreen() {
   const previous = pct(scoreRoutines(scoped, data.logIndex, prevFrom, prevTo, now));
   const delta = current !== null && previous !== null ? current - previous : null;
 
+  // Each bar is split into each person's share of what was done, in their own colour.
+  const partsFrom = (credit: Map<string, number>): BarPart[] => [
+    ...members.map((m) => ({ key: m.user_id, color: memberColor(m.user_id), weight: credit.get(m.user_id) ?? 0 })),
+    { key: ANYONE, color: theme.textSecondary, weight: credit.get(ANYONE) ?? 0 },
+  ];
+  const memberLegend = members.map((m) => ({
+    key: m.user_id,
+    label: m.user_id === userId ? 'Me' : m.profile.display_name,
+    color: memberColor(m.user_id),
+  }));
+
   // Last 8 weeks trend.
   const trend = Array.from({ length: 8 }, (_, i) => {
     const start = subDays(weekStart(now), 7 * (7 - i));
     const end = addDays(start, 6);
-    return { label: format(start, 'd/M'), value: pct(scoreRoutines(scoped, data.logIndex, start, isAfter(end, now) ? now : end, now)) };
+    const to = isAfter(end, now) ? now : end;
+    return {
+      label: format(start, 'd/M'),
+      value: pct(scoreRoutines(scoped, data.logIndex, start, to, now)),
+      parts: partsFrom(creditByPerson(scoped, data.logIndex, start, to)),
+    };
   });
 
   // Score per category.
   const categories = data.categories
     .map((c) => {
       const rs = scoped.filter((r) => r.category_id === c.id);
-      return { c, value: rs.length ? pct(scoreRoutines(rs, data.logIndex, from, now, now)) : undefined };
+      return {
+        c,
+        value: rs.length ? pct(scoreRoutines(rs, data.logIndex, from, now, now)) : undefined,
+        parts: partsFrom(creditByPerson(rs, data.logIndex, from, now)),
+      };
     })
     .filter((x) => x.value !== undefined);
 
@@ -79,7 +116,23 @@ export default function ScorecardScreen() {
   // To-do categories visible in this scope.
   const day = today();
   const scopedCategories = projects.data ?? [];
-  const categorySignals = scopedCategories.map((p) => ({ name: p.name, icon: p.icon, ...categoryStats(p, items.data ?? [], day) }));
+  // To-dos don't record who ticked them off, so a done to-do counts for whoever it was assigned to.
+  const todoParts = (categoryId: string) => {
+    const credit = new Map<string, number>();
+    for (const i of items.data ?? []) {
+      if (i.project_id !== categoryId || i.status !== 'done') continue;
+      const who = i.assignee_id && memberById.has(i.assignee_id) ? i.assignee_id : ANYONE;
+      credit.set(who, (credit.get(who) ?? 0) + 1);
+    }
+    return partsFrom(credit);
+  };
+  const categorySignals = scopedCategories.map((p) => ({
+    name: p.name,
+    icon: p.icon,
+    ...categoryStats(p, items.data ?? [], day),
+    parts: todoParts(p.id),
+  }));
+  const anyoneTodos = categorySignals.some((c) => c.parts.some((p) => p.key === ANYONE && p.weight > 0));
   const todosDone = (items.data ?? []).filter(
     (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedCategories.some((p) => p.id === i.project_id),
   ).length;
@@ -186,6 +239,7 @@ export default function ScorecardScreen() {
 
         <SectionTitle>Last 8 weeks</SectionTitle>
         <Card>
+          <BarLegend items={memberLegend} />
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120, gap: 6 }}>
             {trend.map((t, i) => (
               <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
@@ -197,9 +251,12 @@ export default function ScorecardScreen() {
                     width: '70%',
                     height: `${Math.max(t.value ?? 0, 2) * 0.8}%`,
                     borderRadius: 4,
-                    backgroundColor: t.value === null ? theme.backgroundSelected : bandColor(band(t.value)),
-                  }}
-                />
+                    overflow: 'hidden',
+                    backgroundColor:
+                      t.value === null ? theme.backgroundSelected : hasParts(t.parts) ? undefined : bandColor(band(t.value)),
+                  }}>
+                  {t.value !== null && hasParts(t.parts) && <BarParts parts={t.parts} vertical />}
+                </View>
               </View>
             ))}
           </View>
@@ -216,7 +273,8 @@ export default function ScorecardScreen() {
           <>
             <SectionTitle>By category</SectionTitle>
             <Card>
-              {categories.map(({ c, value }) => (
+              <BarLegend items={memberLegend} />
+              {categories.map(({ c, value, parts }) => (
                 <View key={c.id} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
                     <ThemedText numberOfLines={1} style={{ flex: 1 }}>
@@ -224,7 +282,7 @@ export default function ScorecardScreen() {
                     </ThemedText>
                     <ScorePill value={value ?? null} />
                   </View>
-                  {value != null && <ProgressBar value={value} />}
+                  {value != null && <ProgressBar value={value} parts={parts} />}
                 </View>
               ))}
             </Card>
@@ -238,6 +296,9 @@ export default function ScorecardScreen() {
               <ThemedText type="small" themeColor="textSecondary">
                 {todosDone} to-do{todosDone === 1 ? '' : 's'} done this {period}
               </ThemedText>
+              <BarLegend
+                items={anyoneTodos ? [...memberLegend, { key: ANYONE, label: 'Anyone', color: theme.textSecondary }] : memberLegend}
+              />
               {categorySignals.map((c, i) => (
                 <View key={i} style={{ gap: 4, paddingVertical: 4 }}>
                   <View style={[styles.row, { justifyContent: 'space-between' }]}>
@@ -248,7 +309,7 @@ export default function ScorecardScreen() {
                       {c.done}/{c.total}
                     </ThemedText>
                   </View>
-                  <ProgressBar value={c.total ? (100 * c.done) / c.total : 0} color={theme.tint} />
+                  <ProgressBar value={c.total ? (100 * c.done) / c.total : 0} color={theme.tint} parts={c.parts} />
                 </View>
               ))}
             </Card>

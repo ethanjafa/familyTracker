@@ -8,9 +8,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { MCP_URL } from '@/lib/legal';
 
 const EXAMPLES = [
+  'I want to make tacos tonight. Check what I have and add what’s missing to the grocery list.',
   'Who’s doing what this week?',
   'Give Tuesday’s dishes to me.',
-  'Add milk and eggs to the grocery list.',
 ];
 
 /** How to connect Claude to WhoseTurn: on the public /ai page and in Settings. */

@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, Share, View } from 'react-native';
+import { Linking, Pressable, Share, View } from 'react-native';
 
 import { createInvite, removeMember, setPlanningDay, updateHousehold, updateProfile } from '@/api/household';
 import { ReminderSettings } from '@/components/reminder-settings';
@@ -14,6 +14,8 @@ import { PLANNING_DAY_NAMES, planningDayOf } from '@/lib/planning';
 import { refreshReminders } from '@/lib/reminders';
 import type { Member } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
+
+const FEEDBACK_URL = 'https://forms.gle/ouMvjmui6T5MBDse9';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -97,6 +99,9 @@ export default function SettingsScreen() {
     <>
       <Stack.Screen options={{ title: 'Settings' }} />
       <Screen>
+        <SectionTitle>AI assistant</SectionTitle>
+        <Button title="Connect to Claude" variant="secondary" onPress={() => router.push('/settings/ai')} />
+
         <SectionTitle>Profile</SectionTitle>
         <Card style={{ gap: 16 }}>
           <Field label="Household name" value={householdName} onChangeText={setHouseholdName} />
@@ -146,9 +151,6 @@ export default function SettingsScreen() {
         <SectionTitle>Reminders</SectionTitle>
         <ReminderSettings planningDay={planningDayOf(household)} />
 
-        <SectionTitle>AI assistant</SectionTitle>
-        <Button title="Connect to Claude" variant="secondary" onPress={() => router.push('/settings/ai')} />
-
         <SectionTitle>Account</SectionTitle>
         <Button title="Sign out" variant="secondary" onPress={signOut} />
         <Button title="Delete my account" variant="danger" onPress={removeAccount} />
@@ -157,6 +159,14 @@ export default function SettingsScreen() {
             Privacy policy
           </ThemedText>
         </Pressable>
+
+        <SectionTitle>Help make WhoseTurn better</SectionTitle>
+        <Card>
+          <ThemedText type="small" themeColor="textSecondary">
+            Tell the developer what works, what doesn’t, or what you’d like next. Only the developer sees it.
+          </ThemedText>
+          <Button title="Send private feedback" variant="secondary" onPress={() => Linking.openURL(FEEDBACK_URL)} />
+        </Card>
       </Screen>
     </>
   );

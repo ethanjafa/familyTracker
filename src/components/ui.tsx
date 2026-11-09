@@ -312,13 +312,65 @@ export function useBandColor() {
     b === 'good' ? theme.success : b === 'ok' ? theme.warning : b === 'bad' ? theme.danger : theme.textSecondary;
 }
 
-export function ProgressBar({ value, color, track }: { value: number; color?: string; track?: string }) {
+/** One coloured slice of a stacked bar, sized by its weight relative to the others. */
+export type BarPart = { key: string; color: string; weight: number };
+
+/** Lays the parts side by side (or bottom to top), each taking its share of the space. */
+export function BarParts({ parts, vertical }: { parts: BarPart[]; vertical?: boolean }) {
+  return (
+    <View style={{ flex: 1, flexDirection: vertical ? 'column-reverse' : 'row' }}>
+      {parts
+        .filter((p) => p.weight > 0)
+        .map((p) => (
+          <View key={p.key} style={{ flex: p.weight, backgroundColor: p.color }} />
+        ))}
+    </View>
+  );
+}
+
+export const hasParts = (parts: BarPart[] | undefined): parts is BarPart[] => !!parts?.some((p) => p.weight > 0);
+
+/** `parts` splits the filled length into slices (e.g. each person's share); otherwise one colour fills it. */
+export function ProgressBar({
+  value,
+  color,
+  track,
+  parts,
+}: {
+  value: number;
+  color?: string;
+  track?: string;
+  parts?: BarPart[];
+}) {
   const theme = useTheme();
   const bandColor = useBandColor();
   const clamped = Math.max(0, Math.min(100, value));
+  const stacked = hasParts(parts);
   return (
     <View style={[styles.track, { backgroundColor: track ?? theme.backgroundElement }]}>
-      <View style={[styles.fill, { width: `${clamped}%`, backgroundColor: color ?? bandColor(band(value)) }]} />
+      <View
+        style={[
+          styles.fill,
+          { width: `${clamped}%`, backgroundColor: stacked ? undefined : (color ?? bandColor(band(value))), overflow: 'hidden' },
+        ]}>
+        {stacked && <BarParts parts={parts} />}
+      </View>
+    </View>
+  );
+}
+
+/** Which colour is which person, for stacked bars. */
+export function BarLegend({ items }: { items: { key: string; label: string; color: string }[] }) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4 }}>
+      {items.map((i) => (
+        <View key={i.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: i.color }} />
+          <ThemedText type="small" themeColor="textSecondary" style={{ fontSize: 11 }}>
+            {i.label}
+          </ThemedText>
+        </View>
+      ))}
     </View>
   );
 }

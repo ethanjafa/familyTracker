@@ -2,6 +2,7 @@ import { addDays, differenceInCalendarDays, isAfter, isBefore, max as maxDate, m
 
 import { fromDay, toDay } from '@/lib/dates';
 import {
+  assigneesOn,
   completedBetween,
   flexibleTarget,
   isDayAssignee,
@@ -87,6 +88,28 @@ export function scoreRoutines(routines: Routine[], logs: LogIndex, from: Date, t
     (acc, r) => addScores(acc, scoreRoutine(r, logs, from, to, now)),
     { expected: 0, achieved: 0 },
   );
+}
+
+/**
+ * Who earned the check-ins on these routines over [from, to] (person id -> done count, partial = 0.5).
+ * A check-in counts for the routine's owner that day, whoever ticked it off; unowned ("anyone") routines
+ * credit whoever did them. Shared ownership is split evenly. Used to split score bars by person.
+ */
+export function creditByPerson(routines: Routine[], logs: LogIndex, from: Date, to: Date): Map<string, number> {
+  const fromKey = toDay(from);
+  const toKey = toDay(to);
+  const credit = new Map<string, number>();
+  for (const routine of routines) {
+    for (const [day, log] of logs.get(routine.id) ?? []) {
+      if (day < fromKey || day > toKey) continue;
+      const value = logValue(log);
+      if (!value) continue;
+      const owners = routine.scoredFor ? [routine.scoredFor] : assigneesOn(routine, fromDay(day));
+      const who = owners.length ? owners : [log.user_id];
+      for (const id of who) credit.set(id, (credit.get(id) ?? 0) + value / who.length);
+    }
+  }
+  return credit;
 }
 
 /** Consecutive completed occurrences (days for fixed schedules, periods for flexible ones). */
