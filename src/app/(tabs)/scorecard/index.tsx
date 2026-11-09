@@ -62,12 +62,20 @@ export default function ScorecardScreen() {
   const previous = pct(scoreRoutines(scoped, data.logIndex, prevFrom, prevTo, now));
   const delta = current !== null && previous !== null ? current - previous : null;
 
-  // Each bar is split into each person's share of what was done, in their own colour.
-  const partsFrom = (credit: Map<string, number>): BarPart[] => [
-    ...members.map((m) => ({ key: m.user_id, color: memberColor(m.user_id), weight: credit.get(m.user_id) ?? 0 })),
-    { key: ANYONE, color: theme.textSecondary, weight: credit.get(ANYONE) ?? 0 },
-  ];
-  const memberLegend = members.map((m) => ({
+  // Unassigned to-dos: a see-through grey, so it can't be mistaken for a person's colour (one is slate).
+  const anyoneColor = `${theme.textSecondary}80`;
+  // Family: each bar is split into each person's share of what was done, in their own colour.
+  // One person picked: their score is all theirs, so the bar is just their colour.
+  const isPerson = scope !== FAMILY;
+  const partsFrom = (credit: Map<string, number>): BarPart[] =>
+    isPerson
+      ? [{ key: scope, color: memberColor(scope), weight: [...credit.values()].reduce((a, b) => a + b, 0) }]
+      : [
+          ...members.map((m) => ({ key: m.user_id, color: memberColor(m.user_id), weight: credit.get(m.user_id) ?? 0 })),
+          { key: ANYONE, color: anyoneColor, weight: credit.get(ANYONE) ?? 0 },
+        ];
+  const shownMembers = isPerson ? members.filter((m) => m.user_id === scope) : members;
+  const memberLegend = shownMembers.map((m) => ({
     key: m.user_id,
     label: m.user_id === userId ? 'Me' : m.profile.display_name,
     color: memberColor(m.user_id),
@@ -116,23 +124,27 @@ export default function ScorecardScreen() {
   // To-do categories visible in this scope.
   const day = today();
   const scopedCategories = projects.data ?? [];
-  // To-dos don't record who ticked them off, so a done to-do counts for whoever it was assigned to.
+  // To-dos don't record who ticked them off, so a done to-do counts for whoever it was assigned to,
+  // or for its owner if it's personal 🔒 and unassigned. With one person picked, only theirs count.
   const todoParts = (categoryId: string) => {
     const credit = new Map<string, number>();
     for (const i of items.data ?? []) {
       if (i.project_id !== categoryId || i.status !== 'done') continue;
-      const who = i.assignee_id && memberById.has(i.assignee_id) ? i.assignee_id : ANYONE;
+      const owner = [i.assignee_id, i.private_to].find((id) => id && memberById.has(id));
+      const who = owner ?? ANYONE;
+      if (isPerson && who !== scope) continue;
       credit.set(who, (credit.get(who) ?? 0) + 1);
     }
     return partsFrom(credit);
   };
-  const categorySignals = scopedCategories.map((p) => ({
-    name: p.name,
-    icon: p.icon,
-    ...categoryStats(p, items.data ?? [], day),
-    parts: todoParts(p.id),
-  }));
-  const anyoneTodos = categorySignals.some((c) => c.parts.some((p) => p.key === ANYONE && p.weight > 0));
+  const categorySignals = scopedCategories.map((p) => {
+    const stats = categoryStats(p, items.data ?? [], day);
+    const parts = todoParts(p.id);
+    // Done count on the bar: everyone's for the family, or just the picked person's.
+    const done = isPerson ? parts.reduce((a, x) => a + x.weight, 0) : stats.done;
+    return { name: p.name, icon: p.icon, ...stats, done, parts };
+  });
+  const anyoneTodos = !isPerson && categorySignals.some((c) => c.parts.some((p) => p.key === ANYONE && p.weight > 0));
   const todosDone = (items.data ?? []).filter(
     (i) => i.completed_at && i.completed_at >= from.toISOString() && scopedCategories.some((p) => p.id === i.project_id),
   ).length;
@@ -297,7 +309,7 @@ export default function ScorecardScreen() {
                 {todosDone} to-do{todosDone === 1 ? '' : 's'} done this {period}
               </ThemedText>
               <BarLegend
-                items={anyoneTodos ? [...memberLegend, { key: ANYONE, label: 'Anyone', color: theme.textSecondary }] : memberLegend}
+                items={anyoneTodos ? [...memberLegend, { key: ANYONE, label: 'Anyone', color: anyoneColor }] : memberLegend}
               />
               {categorySignals.map((c, i) => (
                 <View key={i} style={{ gap: 4, paddingVertical: 4 }}>
