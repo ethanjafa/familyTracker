@@ -151,6 +151,14 @@ export default function SettingsScreen() {
         <SectionTitle>Reminders</SectionTitle>
         <ReminderSettings planningDay={planningDayOf(household)} />
 
+        <SectionTitle>Help make WhoseTurn better</SectionTitle>
+        <Card>
+          <ThemedText type="small" themeColor="textSecondary">
+            Tell the developer what works, what doesn’t, or what you’d like next. Only the developer sees it.
+          </ThemedText>
+          <Button title="Send private feedback" variant="secondary" onPress={() => Linking.openURL(FEEDBACK_URL)} />
+        </Card>
+
         <SectionTitle>Account</SectionTitle>
         <Button title="Sign out" variant="secondary" onPress={signOut} />
         <Button title="Delete my account" variant="danger" onPress={removeAccount} />
@@ -159,14 +167,6 @@ export default function SettingsScreen() {
             Privacy policy
           </ThemedText>
         </Pressable>
-
-        <SectionTitle>Help make WhoseTurn better</SectionTitle>
-        <Card>
-          <ThemedText type="small" themeColor="textSecondary">
-            Tell the developer what works, what doesn’t, or what you’d like next. Only the developer sees it.
-          </ThemedText>
-          <Button title="Send private feedback" variant="secondary" onPress={() => Linking.openURL(FEEDBACK_URL)} />
-        </Card>
       </Screen>
     </>
   );
