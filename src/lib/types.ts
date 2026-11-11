@@ -153,5 +153,7 @@ export type GroceryItem = {
   name: string;
   status: GroceryStatus;
   for_label: string | null;
+  /** Where it's usually bought, e.g. "Costco". Stays with the item across Need/Have. */
+  store: string | null;
   updated_at: string;
 };
