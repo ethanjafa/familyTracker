@@ -20,6 +20,6 @@ jobs:
       - run: npm ci
       # Generates the typed-route definitions the typecheck needs (normally made by `expo start`).
       - run: npx expo customize tsconfig.json
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
+      - run: npx expo lint
+      - run: npx tsc --noEmit
+      - run: npx jest

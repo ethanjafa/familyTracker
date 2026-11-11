@@ -79,13 +79,13 @@ supabase/migrations/     database schema and security policies
   npx eas-cli@latest update --channel production --environment production --message "What changed"
   ```
   Use `--channel preview --environment preview` for test builds.
-- **Native changes** (new native modules, icon, name, permissions, Expo upgrades) need a new store build: `npx eas-cli@latest build --profile production`, then `npx eas-cli@latest submit`. The runtime version uses Expo's *fingerprint* policy, so updates only reach builds they're compatible with.
+- **Native changes** (new native modules, icon, name, permissions, Expo upgrades) need a new store build: `npx eas-cli@latest build --profile production`, then `npx eas-cli@latest submit`. The runtime version uses Expo's *fingerprint* policy, so updates only reach builds they're compatible with. The fingerprint also covers the `scripts` in `package.json` and `.gitignore`: changing either one makes updates miss the installed apps until a new store build, so leave them alone between builds.
 
 ## Commands
 
 ```bash
-npm test             # automated tests (Jest)
-npm run test:watch   # re-run tests as you edit
+npx jest             # automated tests
+npx jest --watch     # re-run tests as you edit
 npx tsc --noEmit     # typecheck
 npx expo lint        # lint
 npx expo-doctor      # dependency health check
