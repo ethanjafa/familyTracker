@@ -7,12 +7,13 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { planMeal, saveMeal, setCook, unplanMeal, useMealPlans, useMeals } from '@/api/meals';
 import { DayChips, PersonChips } from '@/components/plan/pickers';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Chip, HeaderButton, IconTile, Label, Loading, SectionTitle, styles } from '@/components/ui';
+import { Avatar, Button, Card, Chip, HeaderButton, IconTile, Label, LoadError, Loading, SectionTitle, styles } from '@/components/ui';
 import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDay, toDay } from '@/lib/dates';
 import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
 import { MEAL_IDEAS } from '@/lib/meal-ideas';
 import type { Meal, MealPlan, MealSlot } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
@@ -34,6 +35,8 @@ export function MealPlanner({ days }: { days: Date[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
+  const problem = loadProblem(meals, plans);
+  if (problem) return <LoadError problem={problem} />;
   if (meals.isPending || plans.isPending) return <Loading />;
 
   const mealById = new Map((meals.data ?? []).map((m) => [m.id, m]));

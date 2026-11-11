@@ -2,16 +2,19 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { deleteCategory, saveCategory, useCategories } from '@/api/routines';
-import { Button, Field, Loading, Screen } from '@/components/ui';
+import { Button, Field, LoadError, Loading, Screen } from '@/components/ui';
 import type { RoutineCategory } from '@/lib/types';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
 import { categoryIcon } from '@/lib/icons';
 import { useHousehold } from '@/providers/household-provider';
 
 export default function CategoryForm() {
   const params = useLocalSearchParams<{ id?: string }>();
   const categories = useCategories();
+  const problem = params.id ? loadProblem(categories) : null;
+  if (problem) return <LoadError problem={problem} />;
   if (params.id && categories.isPending) return <Loading />;
   const existing = categories.data?.find((c) => c.id === params.id);
   return <CategoryFormBody existing={existing} />;

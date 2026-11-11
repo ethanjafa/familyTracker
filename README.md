@@ -84,10 +84,20 @@ supabase/migrations/     database schema and security policies
 ## Commands
 
 ```bash
+npm test             # automated tests (Jest)
+npm run test:watch   # re-run tests as you edit
 npx tsc --noEmit     # typecheck
 npx expo lint        # lint
 npx expo-doctor      # dependency health check
 ```
+
+If the typecheck complains about routes like `"/create"`, the generated route types are stale: run `npx expo customize tsconfig.json` (or start the dev server) to refresh them.
+
+## Tests
+
+Tests live in `__tests__/` and cover the app's rules, not its screens: which days a routine is on and whose turn it is (`schedule`), scores and streaks (`scoring`), coaching feedback (`insights`), to-dos and the planning day, the grocery list, and the small helpers. `mcp-schedule-parity` checks that the Claude connector's copy of the scheduling rules (`supabase/functions/mcp/schedule.ts`) gives the same answers as the app's.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, the typecheck and the tests on every push to `main` and on pull requests.
 
 ## Roadmap
 

@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, FontFamilies, IconChoices, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+import type { LoadProblem } from '@/lib/load-problem';
 import { fromDay, toDay } from '@/lib/dates';
 import { type Band, band } from '@/lib/scoring';
 import type { Profile } from '@/lib/types';
@@ -465,6 +466,18 @@ export function EmptyState({ icon, title, body, action }: { icon: string; title:
       </ThemedText>
       {action && <View style={{ marginTop: Spacing.two, alignSelf: 'stretch' }}>{action}</View>}
     </View>
+  );
+}
+
+/** Shown in place of a screen's content when it couldn't be loaded, with a way to try again. */
+export function LoadError({ problem }: { problem: LoadProblem }) {
+  return (
+    <EmptyState
+      icon="📡"
+      title="Couldn't load this"
+      body={problem.message}
+      action={<Button title="Try again" onPress={problem.retry} loading={problem.retrying} />}
+    />
   );
 }
 

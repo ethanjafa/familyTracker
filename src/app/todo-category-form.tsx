@@ -2,9 +2,10 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
 import { deleteProject, saveProject, useProjects } from '@/api/projects';
-import { Button, Field, Loading, Screen } from '@/components/ui';
+import { Button, Field, LoadError, Loading, Screen } from '@/components/ui';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
 import { categoryIcon } from '@/lib/icons';
 import type { Project } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
@@ -13,6 +14,8 @@ import { useHousehold } from '@/providers/household-provider';
 export default function TodoCategoryForm() {
   const params = useLocalSearchParams<{ id?: string }>();
   const projects = useProjects();
+  const problem = params.id ? loadProblem(projects) : null;
+  if (problem) return <LoadError problem={problem} />;
   if (params.id && projects.isPending) return <Loading />;
   const existing = projects.data?.find((p) => p.id === params.id);
   return <TodoCategoryFormBody existing={existing} />;

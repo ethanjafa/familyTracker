@@ -16,6 +16,7 @@ import {
   Button,
   Card,
   EmptyState,
+  LoadError,
   Loading,
   ProgressBar,
   Screen,
@@ -29,6 +30,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { toDay, weekStart } from '@/lib/dates';
 import { assigneesOn, isDueToday, wasPlannedOn } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
+import { loadProblem } from '@/lib/load-problem';
+import { mealSlotOf } from '@/lib/meal-routines';
 import { refreshReminders, useRemindersOn } from '@/lib/reminders';
 import { sortTodos, todoDay } from '@/lib/projects';
 import { routinesFor, streak } from '@/lib/scoring';
@@ -147,6 +150,12 @@ export default function TodayScreen() {
   };
   const lunch = mealOn('lunch');
   const dinner = mealOn('dinner');
+  // "Make lunch" and "Cook dinner" rows say what's being cooked, when a meal is picked.
+  const mealNote = (routineId: string) => {
+    const slot = mealSlotOf(household, routineId);
+    return slot === 'lunch' ? lunch?.name : slot === 'dinner' ? dinner?.name : undefined;
+  };
+  const problem = data.problem ?? loadProblem(projects, items);
   const toBuy = (groceries.data ?? []).filter((i) => i.status === 'need').length;
   const planned = isWeekPlanned(household, data.logIndex, now);
   const planningToday = getDay(now) === planningDayOf(household);
@@ -209,7 +218,9 @@ export default function TodayScreen() {
     <>
       <Stack.Screen options={{ title: format(now, 'EEEE, d MMM') }} />
       <Screen onRefresh={data.refetch} refreshing={data.isRefetching}>
-        {data.isLoading ? (
+        {problem ? (
+          <LoadError problem={problem} />
+        ) : data.isLoading ? (
           <Loading />
         ) : (
           <>
@@ -283,6 +294,7 @@ export default function TodayScreen() {
                           streak={streak(t.routine, data.logIndex, now)}
                           userId={userId}
                           memberById={memberById}
+                          note={mealNote(t.routine.id)}
                         />
                       );
                     }

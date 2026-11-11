@@ -6,12 +6,14 @@ import { type PlanChange, resetWeekToDefaults, setRoutinePlan } from '@/api/plan
 import { planItem, useProjectItems, useProjects } from '@/api/projects';
 import { LoadBar } from '@/components/plan/load-bar';
 import { ThemedText } from '@/components/themed-text';
-import { Avatar, Button, Card, Loading } from '@/components/ui';
+import { Avatar, Button, Card, LoadError, Loading } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { toDay } from '@/lib/dates';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
+import { mealSlotOf } from '@/lib/meal-routines';
 import { sortTodos, todoDay } from '@/lib/projects';
 import { assigneesOn, periodStart, plannedOn, usualAssigneesOn, usualDueOn } from '@/lib/schedule';
 import type { MealSlot, Member, Routine, RoutineCategory } from '@/lib/types';
@@ -99,6 +101,8 @@ export function PlanTable({ days }: { days: Date[] }) {
   const items = useProjectItems();
   const mealPlans = useMealPlans();
 
+  const problem = data.problem ?? loadProblem(projects, items);
+  if (problem) return <LoadError problem={problem} />;
   if (data.isLoading || projects.isPending || items.isPending) return <Loading />;
 
   const today = startOfDay(new Date());
@@ -127,8 +131,10 @@ export function PlanTable({ days }: { days: Date[] }) {
       personal,
     };
   };
+  // "Make lunch" and "Cook dinner" are the Meals rows below, not rows of their own here.
+  const ownRoutines = data.routines.filter((r) => !mealSlotOf(household, r.id));
   const routineRows = data.categories.flatMap((c) =>
-    data.routines.filter((r) => r.category_id === c.id).map((r) => routineRow(r, c)),
+    ownRoutines.filter((r) => r.category_id === c.id).map((r) => routineRow(r, c)),
   );
 
   // Meals: who cooks lunch and dinner each day.
@@ -149,7 +155,7 @@ export function PlanTable({ days }: { days: Date[] }) {
       cells,
       onPress: (i) => {
         const plan = byDay.get(keys[i]);
-        setMealCook(household.id, keys[i], slot, nextPerson(plan?.cook_id ?? null, members), plan).catch(fail);
+        setMealCook(household.id, keys[i], slot, nextPerson(plan?.cook_id ?? null, members)).catch(fail);
       },
     };
   };
@@ -199,7 +205,7 @@ export function PlanTable({ days }: { days: Date[] }) {
 
   // Custom changes for this week: tapped routine boxes and to-dos moved onto a day.
   const changes =
-    data.routines.reduce((n, r) => n + keys.filter((k) => r.plans?.has(k)).length, 0) +
+    ownRoutines.reduce((n, r) => n + keys.filter((k) => r.plans?.has(k)).length, 0) +
     (items.data ?? []).filter((i) => i.planned_date && keys.includes(i.planned_date)).length;
   const backToDefaults = async () => {
     const ok = await confirmAsync(

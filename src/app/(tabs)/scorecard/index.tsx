@@ -13,6 +13,7 @@ import {
   Card,
   Chip,
   hasParts,
+  LoadError,
   Loading,
   ProgressBar,
   Screen,
@@ -24,6 +25,7 @@ import {
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDay, today, weekStart } from '@/lib/dates';
+import { loadProblem } from '@/lib/load-problem';
 import { buildInsights } from '@/lib/insights';
 import { categoryStats } from '@/lib/projects';
 import { assigneesOn } from '@/lib/schedule';
@@ -45,6 +47,8 @@ export default function ScorecardScreen() {
   const [scope, setScope] = useState<string>(FAMILY);
   const [explain, setExplain] = useState(false);
 
+  const problem = data.problem ?? loadProblem(projects, items);
+  if (problem) return <LoadError problem={problem} />;
   if (data.isLoading || projects.isPending || items.isPending) return <Loading />;
 
   const now = new Date();

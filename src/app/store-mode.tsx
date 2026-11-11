@@ -4,21 +4,11 @@ import Animated, { FadeOutRight, LinearTransition } from 'react-native-reanimate
 
 import { setGroceryStatus, useGroceries } from '@/api/groceries';
 import { ThemedText } from '@/components/themed-text';
-import { EmptyState, Loading, Screen, SectionTitle, useElevation } from '@/components/ui';
+import { EmptyState, LoadError, Loading, Screen, SectionTitle, useElevation } from '@/components/ui';
 import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { GroceryItem } from '@/lib/types';
-
-/** Need items by store, A–Z, with items that have no store last. */
-function byStore(items: GroceryItem[]) {
-  const groups = new Map<string, { store: string | null; items: GroceryItem[] }>();
-  for (const i of items) {
-    const key = i.store?.toLowerCase() ?? '';
-    if (!groups.has(key)) groups.set(key, { store: i.store, items: [] });
-    groups.get(key)!.items.push(i);
-  }
-  return [...groups.values()].sort((a, b) => (a.store === null ? 1 : b.store === null ? -1 : a.store.localeCompare(b.store)));
-}
+import { byStore } from '@/lib/groceries';
+import { loadProblem } from '@/lib/load-problem';
 
 /** In the store: only what you need, grouped by store, big targets, and each item slides away once it's in the cart. */
 export default function StoreMode() {
@@ -26,6 +16,7 @@ export default function StoreMode() {
   const elevation = useElevation();
   const groceries = useGroceries();
   const need = (groceries.data ?? []).filter((i) => i.status === 'need');
+  const problem = loadProblem(groceries);
   const groups = byStore(need);
   // Only show headings when the list is actually split across stores.
   const showHeadings = groups.length > 1 || groups[0]?.store != null;
@@ -38,7 +29,9 @@ export default function StoreMode() {
         }}
       />
       <Screen>
-        {groceries.isPending ? (
+        {problem ? (
+          <LoadError problem={problem} />
+        ) : groceries.isPending ? (
           <Loading />
         ) : need.length === 0 ? (
           <EmptyState icon="🎉" title="All done!" body="Everything on the list is in the cart. Time to head home." />

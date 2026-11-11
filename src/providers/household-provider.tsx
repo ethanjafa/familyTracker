@@ -3,6 +3,7 @@ import { createContext, type PropsWithChildren, useContext, useMemo } from 'reac
 import { useHouseholdQuery, useMembersQuery } from '@/api/household';
 import { colorFor, Palette } from '@/constants/theme';
 import { useRealtimeSync } from '@/hooks/use-realtime-sync';
+import { type LoadProblem, loadProblem } from '@/lib/load-problem';
 import type { Household, Member } from '@/lib/types';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -14,6 +15,8 @@ type HouseholdState = {
   /** Each member's own colour, so nobody in the family shares one. */
   memberColor: (userId: string | undefined) => string;
   loading: boolean;
+  /** Set when the family couldn't be loaded (e.g. offline at launch); not the same as having none. */
+  problem: LoadProblem | null;
 };
 
 const HouseholdContext = createContext<HouseholdState | null>(null);
@@ -38,8 +41,9 @@ export function HouseholdProvider({ children }: PropsWithChildren) {
       memberById: new Map(members.map((m) => [m.user_id, m])),
       memberColor: (id) => (id && colors.get(id)) || colorFor(id),
       loading: !!userId && householdQuery.isPending,
+      problem: userId ? loadProblem(householdQuery) : null,
     };
-  }, [userId, household, membersQuery.data, householdQuery.isPending]);
+  }, [userId, household, membersQuery.data, householdQuery]);
 
   return <HouseholdContext.Provider value={value}>{children}</HouseholdContext.Provider>;
 }

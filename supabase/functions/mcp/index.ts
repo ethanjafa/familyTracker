@@ -10,7 +10,20 @@ import { withOAuthProtectedResource, withSupabase } from '@supabase/server';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { z } from 'zod';
 
-import { addDays, DAY_NAMES, describeSchedule, onDay, type Plan, type Routine, type Schedule, weekday, weekStart } from './schedule.ts';
+import {
+  addDays,
+  asMealRoutine,
+  cookPlan,
+  DAY_NAMES,
+  describeSchedule,
+  mealSlotOf,
+  onDay,
+  type Plan,
+  type Routine,
+  type Schedule,
+  weekday,
+  weekStart,
+} from './schedule.ts';
 
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 const text = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value) }] });
@@ -21,7 +34,8 @@ type Member = { user_id: string; name: string };
 async function family(supabase: SupabaseClient, me: string) {
   const { data: mine, error } = await supabase
     .from('household_members')
-    .select('household_id, households(name)')
+    // `*` so this keeps working whether or not newer columns (the meal routines) exist yet.
+    .select('household_id, households(*)')
     .eq('user_id', me)
     .limit(1)
     .maybeSingle();
@@ -33,7 +47,15 @@ async function family(supabase: SupabaseClient, me: string) {
     .eq('household_id', mine.household_id);
   if (e) throw new Error(e.message);
   const members: Member[] = (rows ?? []).map((r: any) => ({ user_id: r.user_id, name: r.profiles?.display_name ?? '' }));
-  return { id: mine.household_id as string, name: (mine as any).households?.name as string, members };
+  const household = (mine as any).households ?? {};
+  return {
+    id: mine.household_id as string,
+    name: household.name as string,
+    members,
+    // The "Make lunch" and "Cook dinner" routines: on the days the meal plan has a cook.
+    lunch_routine_id: (household.lunch_routine_id ?? null) as string | null,
+    dinner_routine_id: (household.dinner_routine_id ?? null) as string | null,
+  };
 }
 
 const nameOf = (members: Member[], id: string | null) => members.find((m) => m.user_id === id)?.name ?? null;
@@ -60,6 +82,23 @@ async function plansBetween(supabase: SupabaseClient, householdId: string, from:
     .lte('plan_date', to);
   if (error) throw new Error(error.message);
   return new Map((data ?? []).map((p: any) => [`${p.routine_id}|${p.plan_date}`, p as Plan]));
+}
+
+/** Lunch and dinner between two days: the cook and the meal, keyed "slot|day". */
+async function mealsBetween(supabase: SupabaseClient, householdId: string, from: string, to: string) {
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .select('plan_date, slot, cook_id, meals(name)')
+    .eq('household_id', householdId)
+    .gte('plan_date', from)
+    .lte('plan_date', to);
+  if (error) throw new Error(error.message);
+  return new Map(
+    (data ?? []).map((p: any) => [
+      `${p.slot}|${p.plan_date}`,
+      { cook_id: p.cook_id as string | null, meal: (p.meals?.name ?? null) as string | null },
+    ]),
+  );
 }
 
 /** "me", a first name or a full name → a member's id. */
@@ -266,8 +305,8 @@ Deno.serve(
             routines.map((r) => ({
               id: r.id,
               name: r.name,
-              schedule: describeSchedule(r.schedule),
-              owners: r.assignee_ids.map((id) => nameOf(f.members, id)),
+              schedule: mealSlotOf(f, r.id) ? 'On days with a cook (see get_week_plan)' : describeSchedule(r.schedule),
+              owners: mealSlotOf(f, r.id) ? [] : r.assignee_ids.map((id) => nameOf(f.members, id)),
               personal: !!r.private_to,
               category: r.category,
             })),
@@ -341,7 +380,7 @@ Deno.serve(
         'get_week_plan',
         {
           description:
-            'The Assign table for one week (Monday to Sunday): for each routine, who does it on each day ("nobody yet" = still to assign), plus to-dos due that week. Pass any date in the week (YYYY-MM-DD, the person’s local date).',
+            'The Assign table for one week (Monday to Sunday): for each routine, who does it on each day ("nobody yet" = still to assign), the planned lunches and dinners with their cooks, plus to-dos due that week. "Make lunch" and "Cook dinner" are on the days that have a cook. Pass any date in the week (YYYY-MM-DD, the person’s local date).',
           inputSchema: z.object({ date: DATE }),
           annotations: { readOnlyHint: true },
         },
@@ -351,6 +390,7 @@ Deno.serve(
           const week = Array.from({ length: 7 }, (_, i) => addDays(from, i));
           const routines = await activeRoutines(supabase, f.id);
           const plans = await plansBetween(supabase, f.id, from, week[6]);
+          const meals = await mealsBetween(supabase, f.id, from, week[6]);
           const { data: todos, error } = await supabase
             .from('project_items')
             .select('title, status, due_date, planned_date, assignee_id')
@@ -360,16 +400,28 @@ Deno.serve(
           const label = (d: string) => `${DAY_NAMES[weekday(d)]} ${d}`;
           return text({
             week: `${from} to ${week[6]}`,
-            routines: routines.map((r) => ({
-              id: r.id,
-              name: r.name,
-              days: Object.fromEntries(
-                week.flatMap((d) => {
-                  const { planned, who } = onDay(r, d, plans.get(`${r.id}|${d}`));
-                  return planned ? [[label(d), who.length ? who.map((id) => nameOf(f.members, id)).join(', ') : 'nobody yet']] : [];
-                }),
-              ),
-            })),
+            routines: routines.map((r) => {
+              // Lunch and dinner follow the meal plan's cooks; everything else its schedule and the Assign tab.
+              const slot = mealSlotOf(f, r.id);
+              const on = (d: string) =>
+                slot ? onDay(asMealRoutine(r), d, cookPlan(meals.get(`${slot}|${d}`)?.cook_id)) : onDay(r, d, plans.get(`${r.id}|${d}`));
+              return {
+                id: r.id,
+                name: r.name,
+                days: Object.fromEntries(
+                  week.flatMap((d) => {
+                    const { planned, who } = on(d);
+                    return planned ? [[label(d), who.length ? who.map((id) => nameOf(f.members, id)).join(', ') : 'nobody yet']] : [];
+                  }),
+                ),
+              };
+            }),
+            meals: week.flatMap((d) =>
+              (['lunch', 'dinner'] as const).flatMap((slot) => {
+                const m = meals.get(`${slot}|${d}`);
+                return m ? [{ day: label(d), slot, meal: m.meal, cook: nameOf(f.members, m.cook_id) }] : [];
+              }),
+            ),
             todos: (todos ?? [])
               .map((t: any) => ({ ...t, day: t.planned_date ?? t.due_date }))
               .filter((t) => t.day && t.day >= from && t.day <= week[6])
@@ -382,13 +434,31 @@ Deno.serve(
         'assign_routine',
         {
           description:
-            'Change one day of the week plan (like tapping a box on the Assign tab). who: a family member’s name or "me" to give them that day; "off" to take the routine off that day; "usual" to go back to its normal schedule and owner. Get routine ids from list_routines or get_week_plan.',
+            'Change one day of the week plan (like tapping a box on the Assign tab). who: a family member’s name or "me" to give them that day; "off" to take the routine off that day; "usual" to go back to its normal schedule and owner. For "Make lunch" and "Cook dinner" this sets who cooks that day ("off" or "usual" = nobody). Get routine ids from list_routines or get_week_plan.',
           inputSchema: z.object({ routine_id: z.string().uuid(), date: DATE, who: z.string().min(1) }),
           annotations: { idempotentHint: true },
         },
         async ({ routine_id, date, who }) => {
           const f = await family(supabase, me);
           const q = who.trim().toLowerCase();
+          const slot = mealSlotOf(f, routine_id);
+          if (slot) {
+            // Who cooks lives with the meal plan, addressed by its day and slot.
+            const where = { household_id: f.id, plan_date: date, slot };
+            if (q === 'off' || q === 'usual') {
+              const { error: e1 } = await supabase.from('meal_plans').update({ cook_id: null }).match(where);
+              if (e1) throw new Error(e1.message);
+              // A slot with no meal and no cook is just an empty row.
+              const { error: e2 } = await supabase.from('meal_plans').delete().match(where).is('meal_id', null);
+              if (e2) throw new Error(e2.message);
+              return text({ routine_id, date: `${DAY_NAMES[weekday(date)]} ${date}`, cook: null });
+            }
+            const { error: e } = await supabase
+              .from('meal_plans')
+              .upsert({ ...where, cook_id: findMember(f.members, me, who) }, { onConflict: 'household_id,plan_date,slot' });
+            if (e) throw new Error(e.message);
+            return text({ routine_id, date: `${DAY_NAMES[weekday(date)]} ${date}`, cook: who });
+          }
           const { error } =
             q === 'usual'
               ? await supabase.from('routine_plans').delete().eq('routine_id', routine_id).eq('plan_date', date)

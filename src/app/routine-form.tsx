@@ -6,7 +6,7 @@ import { createCategory, deleteRoutine, saveRoutine } from '@/api/routines';
 import { CategoryPicker, NEW_CATEGORY } from '@/components/category-picker';
 import { RoutineHistory } from '@/components/routine-history';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Chip, ChipGroup, Field, Label, Loading, Screen, Segmented, styles } from '@/components/ui';
+import { Button, Chip, ChipGroup, Field, Label, LoadError, Loading, Screen, Segmented, styles } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
@@ -51,6 +51,7 @@ function slotsOf(s: Schedule): Slot[] {
 export default function RoutineForm() {
   const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
   const data = useRoutineData();
+  if (data.problem) return <LoadError problem={data.problem} />;
   if (data.isLoading) return <Loading />;
   const existing = data.routines.find((r) => r.id === params.id);
   if (params.id && !existing) return <Loading />;

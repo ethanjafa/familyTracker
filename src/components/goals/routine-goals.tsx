@@ -11,6 +11,7 @@ import {
   Card,
   EmptyState,
   IconTile,
+  LoadError,
   Loading,
   ScorePill,
   SectionTitle,
@@ -22,6 +23,7 @@ import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
 import { weekStart } from '@/lib/dates';
 import { showAlert } from '@/lib/dialogs';
+import { mealSlotOf } from '@/lib/meal-routines';
 import { describeSchedule, hasDayAssignees } from '@/lib/schedule';
 import { pct, scoreRoutine, scoreRoutines, streak } from '@/lib/scoring';
 import { type RoutineTemplate, suggestedCategories, suggestedRoutines } from '@/lib/suggestions';
@@ -45,6 +47,7 @@ export function RoutineGoals() {
     });
   const allCollapsed = categories.every((c) => !expanded.has(c.id));
 
+  if (data.problem) return <LoadError problem={data.problem} />;
   if (data.isLoading) return <Loading />;
 
   return (
@@ -215,14 +218,15 @@ function SuggestedCategories({ categories }: { categories: RoutineCategory[] }) 
 
 function RoutineLine({ routine, logIndex }: { routine: Routine; logIndex: ReturnType<typeof useRoutineData>['logIndex'] }) {
   const theme = useTheme();
-  const { memberById } = useHousehold();
+  const { memberById, household } = useHousehold();
   const now = new Date();
   const week = pct(scoreRoutine(routine, logIndex, weekStart(now), now));
   const s = streak(routine, logIndex, now);
   const turns = hasDayAssignees(routine);
   const people = turns ? [...new Set(Object.values(routine.day_assignees ?? {}))] : routine.assignee_ids;
   const details = [
-    describeSchedule(routine.schedule),
+    // Lunch and dinner have no days of their own: they follow the cooks picked on Assign.
+    mealSlotOf(household, routine.id) ? 'On days with a cook (set in Assign)' : describeSchedule(routine.schedule),
     turns ? 'Takes turns' : '',
     s >= 2 ? `🔥 ${s}` : '',
   ].filter(Boolean);

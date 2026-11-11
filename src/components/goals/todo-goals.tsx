@@ -6,9 +6,10 @@ import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useProjectItems, useProjects } from '@/api/projects';
 import { ThemedText } from '@/components/themed-text';
 import { TodoRow } from '@/components/todo-row';
-import { Button, EmptyState, IconTile, Loading, styles, useElevation } from '@/components/ui';
+import { Button, EmptyState, IconTile, LoadError, Loading, styles, useElevation } from '@/components/ui';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { loadProblem } from '@/lib/load-problem';
 import { prettyDay, today as todayKey } from '@/lib/dates';
 import { categoryStats, sortTodos } from '@/lib/projects';
 import type { Project, ProjectItem } from '@/lib/types';
@@ -19,6 +20,8 @@ export function TodoGoals() {
   const items = useProjectItems();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  const problem = loadProblem(projects, items);
+  if (problem) return <LoadError problem={problem} />;
   if (projects.isPending || items.isPending) return <Loading />;
   const categories = projects.data ?? [];
   const addTodo = () => router.push('/todo-form');

@@ -14,6 +14,9 @@ export type Household = {
   planning_day?: number;
   /** The "Plan the week together" routine that set_planning_day created. */
   planning_routine_id?: string | null;
+  /** The "Make lunch" and "Cook dinner" routines every family has. Missing before the migration runs. */
+  lunch_routine_id?: string | null;
+  dinner_routine_id?: string | null;
 };
 
 export type Member = {

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { showAlert } from '@/lib/dialogs';
+import { normalizeName, wantedNames } from '@/lib/groceries';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { GroceryItem, GroceryStatus } from '@/lib/types';
@@ -22,14 +23,12 @@ export function useGroceries() {
   });
 }
 
-const normalize = (name: string) => name.trim().toLowerCase();
-
 /**
  * Mark items as needed (from Have or the Backlog), adding any that aren't on the list yet.
  * Items you already need are left alone. Returns how many items newly went on the shopping list.
  */
 export async function needGroceries(householdId: string, names: string[], forLabel: string | null = null) {
-  const wanted = [...new Map(names.filter((n) => n.trim()).map((n) => [normalize(n), n.trim()])).entries()];
+  const wanted = wantedNames(names);
   if (!wanted.length) return 0;
 
   const { data: existing, error } = await supabase
@@ -37,7 +36,7 @@ export async function needGroceries(householdId: string, names: string[], forLab
     .select('id, name, status')
     .eq('household_id', householdId);
   if (error) throw error;
-  const byName = new Map((existing ?? []).map((i) => [normalize(i.name), i]));
+  const byName = new Map((existing ?? []).map((i) => [normalizeName(i.name), i]));
 
   const toInsert = wanted.filter(([key]) => !byName.has(key)).map(([, name]) => name);
   const toNeed = wanted.map(([key]) => byName.get(key)).filter((i) => i && i.status !== 'need').map((i) => i!.id);
@@ -84,11 +83,4 @@ export async function setGroceryStore(item: GroceryItem, store: string | null) {
   const { error } = await supabase.from('grocery_items').update({ store: value }).eq('id', item.id);
   if (error) showAlert('Could not update', error.message);
   await queryClient.invalidateQueries({ queryKey: key });
-}
-
-/** The stores this household already uses, so picking one is a tap, not typing. Case-insensitive. */
-export function storesOf(items: GroceryItem[]) {
-  const seen = new Map<string, string>();
-  for (const i of items) if (i.store && !seen.has(i.store.toLowerCase())) seen.set(i.store.toLowerCase(), i.store);
-  return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }

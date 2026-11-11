@@ -92,3 +92,28 @@ export function onDay(r: Routine, day: string, plan?: Plan) {
   const who = plan?.planned && plan.assignee_id ? [plan.assignee_id] : usualAssignees(r, day);
   return { planned, who: planned ? who : [] };
 }
+
+// "Make lunch" and "Cook dinner" (src/lib/meal-routines.ts): routines every family has, with no
+// days of their own. They are on exactly the days the meal plan has a cook for.
+
+export type MealSlot = 'lunch' | 'dinner';
+export type MealRoutineIds = { lunch_routine_id?: string | null; dinner_routine_id?: string | null };
+
+/** Which meal a routine stands for, or null for an ordinary routine. */
+export function mealSlotOf(ids: MealRoutineIds, routineId: string): MealSlot | null {
+  if (routineId === ids.lunch_routine_id) return 'lunch';
+  if (routineId === ids.dinner_routine_id) return 'dinner';
+  return null;
+}
+
+/** A meal routine as the schedule rules should see it: never on by itself, nobody by default. */
+export const asMealRoutine = <R extends Routine>(r: R): R => ({
+  ...r,
+  schedule: { type: 'weekdays', days: [] },
+  assignee_ids: [],
+  day_assignees: null,
+});
+
+/** The cook of a day's meal as that day's plan (undefined when nobody is cooking). */
+export const cookPlan = (cookId: string | null | undefined): Plan | undefined =>
+  cookId ? { planned: true, assignee_id: cookId } : undefined;
