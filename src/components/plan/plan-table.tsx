@@ -131,14 +131,8 @@ export function PlanTable({ days }: { days: Date[] }) {
       personal,
     };
   };
-  // "Make lunch" and "Cook dinner" are the Meals rows below, not rows of their own here.
-  const ownRoutines = data.routines.filter((r) => !mealSlotOf(household, r.id));
-  const routineRows = data.categories.flatMap((c) =>
-    ownRoutines.filter((r) => r.category_id === c.id).map((r) => routineRow(r, c)),
-  );
-
-  // Meals: who cooks lunch and dinner each day.
-  const mealRow = (slot: MealSlot): Row => {
+  // Who cooks lunch and dinner each day. Shown as the "Make lunch" / "Cook dinner" routine's row.
+  const mealRow = (slot: MealSlot, title: string, key: string): Row => {
     const byDay = new Map(
       (mealPlans.data ?? []).filter((p) => p.slot === slot && keys.includes(p.plan_date)).map((p) => [p.plan_date, p]),
     );
@@ -147,9 +141,9 @@ export function PlanTable({ days }: { days: Date[] }) {
       return cook ? { kind: 'owner', userId: cook } : { kind: 'open' };
     });
     return {
-      key: slot,
+      key,
       icon: slot === 'lunch' ? '🥪' : '🍽️',
-      title: slot === 'lunch' ? 'Make lunch' : 'Cook dinner',
+      title,
       count: `${cells.filter((c) => c.kind === 'owner').length}/7`,
       needs: cells.some((c, i) => c.kind === 'open' && upcoming(days[i])),
       cells,
@@ -159,6 +153,24 @@ export function PlanTable({ days }: { days: Date[] }) {
       },
     };
   };
+
+  // Routines in category order. "Make lunch" and "Cook dinner" sit among them like any routine;
+  // their boxes choose the cook.
+  const ownRoutines = data.routines.filter((r) => !mealSlotOf(household, r.id));
+  const routineRows = data.categories.flatMap((c) =>
+    data.routines
+      .filter((r) => r.category_id === c.id)
+      .map((r) => {
+        const slot = mealSlotOf(household, r.id);
+        return slot ? mealRow(slot, r.name, r.id) : routineRow(r, c);
+      }),
+  );
+  // A family without those routines (before the update, or after deleting one) still picks cooks here.
+  const hasRoutine = (slot: MealSlot) => data.routines.some((r) => mealSlotOf(household, r.id) === slot);
+  const looseMealRows = [
+    ...(hasRoutine('lunch') ? [] : [mealRow('lunch', 'Make lunch', 'lunch')]),
+    ...(hasRoutine('dinner') ? [] : [mealRow('dinner', 'Cook dinner', 'dinner')]),
+  ];
 
   // To-dos: every open one (except those planned for a later week), so nothing assigned goes missing.
   // A to-do sits on its planned day, or by default on its target date when that falls in this week.
@@ -197,7 +209,7 @@ export function PlanTable({ days }: { days: Date[] }) {
 
   const sections = [
     { key: 'routines', title: 'Routines', rows: routineRows },
-    { key: 'meals', title: 'Meals', rows: [mealRow('lunch'), mealRow('dinner')] },
+    { key: 'meals', title: 'Meals', rows: looseMealRows },
     { key: 'todos', title: 'To do', rows: todoRows },
   ].filter((s) => s.rows.length);
   const all = sections.flatMap((s) => s.rows);
