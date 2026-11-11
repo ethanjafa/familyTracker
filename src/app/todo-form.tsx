@@ -6,10 +6,11 @@ import { createTodoCategory, deleteItem, saveItem, useProjectItems, useProjects 
 import { CategoryPicker, NEW_CATEGORY } from '@/components/category-picker';
 import { PersonChips } from '@/components/plan/pickers';
 import { ThemedText } from '@/components/themed-text';
-import { Button, DateField, Field, isValidDay, Label, Loading, Screen, Segmented } from '@/components/ui';
+import { Button, DateField, Field, isValidDay, Label, LoadError, Loading, Screen, Segmented } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
 import type { Project, ProjectItem } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -18,6 +19,8 @@ export default function TodoForm() {
   const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
   const items = useProjectItems();
   const projects = useProjects();
+  const problem = loadProblem(items, projects);
+  if (problem) return <LoadError problem={problem} />;
   if (items.isPending || projects.isPending) return <Loading />;
   const existing = items.data?.find((i) => i.id === params.id);
   if (params.id && !existing) return <Loading />;

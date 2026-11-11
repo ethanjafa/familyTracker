@@ -10,9 +10,10 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { Platform, useColorScheme } from 'react-native';
+import { Platform, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { LoadError } from '@/components/ui';
 import { Colors, FontFamilies } from '@/constants/theme';
 import { CONSENT_PATH, pendingConsentRequest, rememberConsentRequest } from '@/lib/oauth-consent';
 import { queryClient } from '@/lib/query-client';
@@ -61,7 +62,7 @@ export default function RootLayout() {
 function RootNavigator() {
   const colorScheme = useColorScheme();
   const { session, loading: authLoading } = useAuth();
-  const { household, loading: householdLoading } = useHouseholdState();
+  const { household, loading: householdLoading, problem: householdProblem } = useHouseholdState();
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -88,11 +89,21 @@ function RootNavigator() {
   // Signed in partway through connecting an AI assistant: back to its consent screen.
   useEffect(() => {
     const pending = pendingConsentRequest();
-    if (!ready || !session || !pending || pathname === CONSENT_PATH) return;
+    if (!ready || !session || householdProblem || !pending || pathname === CONSENT_PATH) return;
     router.replace({ pathname: CONSENT_PATH, params: { authorization_id: pending } });
-  }, [ready, session, pathname]);
+  }, [ready, session, pathname, householdProblem]);
 
   if (!ready) return null;
+
+  // Signed in, but the family couldn't be loaded (offline, server trouble). Say so and offer a retry,
+  // instead of treating it as "no family yet" and sending the person to onboarding.
+  if (session && householdProblem) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', backgroundColor: Colors[colorScheme === 'dark' ? 'dark' : 'light'].background }}>
+        <LoadError problem={householdProblem} />
+      </View>
+    );
+  }
 
   const modal = { presentation: 'modal', headerShown: true } as const;
   // Where a locked screen sends you. Without this, expo-router falls back to the first open route

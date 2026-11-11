@@ -24,10 +24,12 @@ type Props = {
   dayLabel?: string;
   /** Called before the check-in is saved. */
   onToggle?: () => void;
+  /** Extra detail after the category, e.g. the meal that's planned ("Tacos"). */
+  note?: string;
 };
 
 /** A checkable routine: tap to mark it done, tap again to undo. */
-export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false, dayLabel, onToggle }: Props) {
+export function RoutineRow({ routine, category, day, logs, streak, userId, memberById, readOnly = false, dayLabel, onToggle, note }: Props) {
   const theme = useTheme();
   const log = logs?.get(day);
   const status = log?.status;
@@ -37,7 +39,7 @@ export function RoutineRow({ routine, category, day, logs, streak, userId, membe
     setLog(routine, day, status ? null : 'done', userId);
   };
 
-  const details: string[] = [...(dayLabel ? [dayLabel] : []), `${category.icon} ${category.name}`];
+  const details: string[] = [...(dayLabel ? [dayLabel] : []), `${category.icon} ${category.name}`, ...(note ? [note] : [])];
   if (isFlexible(routine.schedule)) {
     const done = completedBetween(logs, periodStart(routine, fromDay(day)), fromDay(day));
     const period = periodName(routine.schedule);

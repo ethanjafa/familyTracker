@@ -3,13 +3,15 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
-import { deleteGrocery, needGroceries, setGroceryStatus, setGroceryStore, storesOf, useGroceries } from '@/api/groceries';
+import { deleteGrocery, needGroceries, setGroceryStatus, setGroceryStore, useGroceries } from '@/api/groceries';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Card, Chip, EmptyState, Loading, SectionTitle, styles } from '@/components/ui';
+import { Button, Card, Chip, EmptyState, LoadError, Loading, SectionTitle, styles } from '@/components/ui';
 import { FontFamilies, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { storesOf } from '@/lib/groceries';
+import { loadProblem } from '@/lib/load-problem';
 import type { GroceryItem, GroceryStatus } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
 
@@ -29,6 +31,8 @@ export function GroceryList() {
   const [editing, setEditing] = useState(false);
   const [picking, setPicking] = useState<string | null>(null);
 
+  const problem = loadProblem(groceries);
+  if (problem) return <LoadError problem={problem} />;
   if (groceries.isPending) return <Loading />;
   const all = groceries.data ?? [];
   const byStatus = (s: GroceryStatus) => all.filter((i) => i.status === s);
@@ -120,7 +124,7 @@ export function GroceryList() {
           )}
           <View style={[styles.row, { justifyContent: 'space-between', gap: Spacing.two }]}>
             <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
-              {stores.length ? '' : 'Tip: tap an item to set where you buy it'}
+              Tip: tap an item to choose the store
             </ThemedText>
             <Pressable onPress={() => setEditing((e) => !e)} hitSlop={8}>
               <ThemedText type="small" themeColor={editing ? 'tint' : 'textSecondary'} style={{ fontWeight: 700 }}>

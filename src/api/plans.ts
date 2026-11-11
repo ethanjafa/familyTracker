@@ -5,6 +5,7 @@ import { showAlert } from '@/lib/dialogs';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { Routine, RoutinePlan } from '@/lib/types';
+import { hasPending, inOrder } from '@/lib/write-queue';
 import { useHousehold } from '@/providers/household-provider';
 
 /** Plan changes from the same window as logs onwards, including future weeks. */
@@ -43,16 +44,21 @@ export async function setRoutinePlan(routine: Routine, day: string, change: Plan
     ];
   });
 
-  const { error } = change
-    ? await supabase
-        .from('routine_plans')
-        .upsert(
-          { routine_id: routine.id, household_id: routine.household_id, plan_date: day, ...change },
-          { onConflict: 'routine_id,plan_date' },
-        )
-    : await supabase.from('routine_plans').delete().eq('routine_id', routine.id).eq('plan_date', day);
+  // Quick taps on one box are saved in the order they were made.
+  const queue = `routine_plans|${routine.household_id}|`;
+  const { error } = await inOrder(`${queue}${routine.id}|${day}`, async () =>
+    change
+      ? await supabase
+          .from('routine_plans')
+          .upsert(
+            { routine_id: routine.id, household_id: routine.household_id, plan_date: day, ...change },
+            { onConflict: 'routine_id,plan_date' },
+          )
+      : await supabase.from('routine_plans').delete().eq('routine_id', routine.id).eq('plan_date', day),
+  );
   if (error) showAlert('Could not save the plan', error.message);
-  await queryClient.invalidateQueries({ queryKey: key });
+  // Reload once the last tap has been saved, so an earlier answer can't undo a later tap.
+  if (!hasPending(queue)) await queryClient.invalidateQueries({ queryKey: key });
 }
 
 /**

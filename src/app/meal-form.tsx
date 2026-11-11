@@ -3,9 +3,10 @@ import { useState } from 'react';
 
 import { deleteMeal, saveMeal, useMeals } from '@/api/meals';
 import { ThemedText } from '@/components/themed-text';
-import { Button, Field, Loading, Screen } from '@/components/ui';
+import { Button, Field, LoadError, Loading, Screen } from '@/components/ui';
 import { confirmAsync, showAlert } from '@/lib/dialogs';
 import { errorMessage } from '@/lib/errors';
+import { loadProblem } from '@/lib/load-problem';
 import { mealIcon } from '@/lib/icons';
 import type { Meal } from '@/lib/types';
 import { useHousehold } from '@/providers/household-provider';
@@ -13,6 +14,8 @@ import { useHousehold } from '@/providers/household-provider';
 export default function MealForm() {
   const params = useLocalSearchParams<{ id?: string }>();
   const meals = useMeals();
+  const problem = params.id ? loadProblem(meals) : null;
+  if (problem) return <LoadError problem={problem} />;
   if (params.id && meals.isPending) return <Loading />;
   const existing = meals.data?.find((m) => m.id === params.id);
   return <MealFormBody existing={existing} />;

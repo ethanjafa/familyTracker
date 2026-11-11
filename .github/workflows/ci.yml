@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # A zone with daylight saving time, so date maths is tested where it can go wrong.
+      TZ: America/Toronto
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Generates the typed-route definitions the typecheck needs (normally made by `expo start`).
+      - run: npx expo customize tsconfig.json
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
