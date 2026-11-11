@@ -73,3 +73,22 @@ export async function deleteGrocery(id: string) {
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['grocery_items'] });
 }
+
+/** Set (or clear, with null) where an item is usually bought. Optimistic. */
+export async function setGroceryStore(item: GroceryItem, store: string | null) {
+  const key = ['grocery_items', item.household_id];
+  const value = store?.trim() || null;
+  queryClient.setQueriesData<GroceryItem[]>({ queryKey: key }, (old) =>
+    old?.map((i) => (i.id === item.id ? { ...i, store: value } : i)),
+  );
+  const { error } = await supabase.from('grocery_items').update({ store: value }).eq('id', item.id);
+  if (error) showAlert('Could not update', error.message);
+  await queryClient.invalidateQueries({ queryKey: key });
+}
+
+/** The stores this household already uses, so picking one is a tap, not typing. Case-insensitive. */
+export function storesOf(items: GroceryItem[]) {
+  const seen = new Map<string, string>();
+  for (const i of items) if (i.store && !seen.has(i.store.toLowerCase())) seen.set(i.store.toLowerCase(), i.store);
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
