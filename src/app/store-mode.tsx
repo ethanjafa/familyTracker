@@ -25,7 +25,7 @@ export default function StoreMode() {
     <>
       <Stack.Screen
         options={{
-          title: need.length ? `🛒 ${need.length} to go` : '🛒 Store mode',
+          title: need.length ? `🛒 ${need.length} to go` : '🛒 Shopping list',
         }}
       />
       <Screen>

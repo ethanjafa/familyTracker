@@ -1,9 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { View } from 'react-native';
 
 import { useProjectItems, useProjects } from '@/api/projects';
 import { RoutineGoals } from '@/components/goals/routine-goals';
 import { TodoGoals } from '@/components/goals/todo-goals';
-import { HeaderButton, Screen, Segmented } from '@/components/ui';
+import { HeaderButton, Screen, Segmented, SettingsButton } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 
 type Section = 'routines' | 'todos';
@@ -22,7 +23,17 @@ export default function GoalsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Routines', headerRight: () => <HeaderButton title="+" onPress={add} /> }} />
+      <Stack.Screen
+        options={{
+          title: 'Routines',
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <SettingsButton />
+              <HeaderButton title="+" onPress={add} />
+            </View>
+          ),
+        }}
+      />
       <Screen onRefresh={refetch} refreshing={routines.isRefetching || projects.isRefetching}>
         <Segmented
           options={[

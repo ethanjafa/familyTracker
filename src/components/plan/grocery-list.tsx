@@ -120,7 +120,7 @@ export function GroceryList() {
       ) : (
         <>
           {need.length > 0 && (
-            <Button title={`🛒 Store mode · ${need.length} to buy`} onPress={() => router.push('/store-mode')} />
+            <Button title={`🛒 Start shopping · ${need.length} to buy`} onPress={() => router.push('/store-mode')} />
           )}
           <View style={[styles.row, { justifyContent: 'space-between', gap: Spacing.two }]}>
             <ThemedText type="small" themeColor="textSecondary" style={{ flex: 1 }}>
@@ -203,11 +203,11 @@ function GroceryRow({
       }>
       <View style={local.row}>
         <Pressable onPress={onPick} hitSlop={4} style={{ flex: 1 }}>
-          <ThemedText style={item.status === 'need' ? { fontWeight: 600 } : { opacity: 0.75 }} numberOfLines={1}>
+          <ThemedText style={item.status === 'need' ? { fontWeight: 600 } : { opacity: 0.75 }}>
             {item.name}
           </ThemedText>
           {detail ? (
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            <ThemedText type="small" themeColor="textSecondary">
               {detail}
             </ThemedText>
           ) : null}

@@ -1,4 +1,5 @@
 import { addDays, format } from 'date-fns';
+import { router } from 'expo-router';
 import { type PropsWithChildren, type ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
@@ -118,6 +119,20 @@ export function HeaderButton({ title, onPress }: { title: string; onPress: () =>
       <ThemedText style={{ color: theme.tint, fontWeight: 700, fontSize: isPlus ? 22 : 16, lineHeight: isPlus ? 26 : 22 }}>
         {title}
       </ThemedText>
+    </Pressable>
+  );
+}
+
+/** The gear in the top bar of every tab: opens Settings over whatever you were doing. */
+export function SettingsButton() {
+  return (
+    <Pressable
+      onPress={() => router.push('/settings')}
+      hitSlop={12}
+      accessibilityRole="button"
+      accessibilityLabel="Settings"
+      style={({ pressed }) => ({ paddingHorizontal: Spacing.two, opacity: pressed ? 0.6 : 1 })}>
+      <ThemedText style={{ fontSize: 20, lineHeight: 26 }}>⚙️</ThemedText>
     </Pressable>
   );
 }

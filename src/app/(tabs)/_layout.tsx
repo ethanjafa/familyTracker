@@ -29,13 +29,14 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Assign</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person.2" md="group" />
       </NativeTabs.Trigger>
+      {/* Groceries and the meal plan. Settings is the gear at the top of every tab. */}
+      <NativeTabs.Trigger name="food">
+        <NativeTabs.Trigger.Label>Food</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="cart" md="shopping_cart" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="scorecard">
         <NativeTabs.Trigger.Label>Track</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.bar" md="bar_chart" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="gearshape" md="settings" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -27,7 +27,7 @@ import {
 import { Radius, Spacing } from '@/constants/theme';
 import { useRoutineData } from '@/hooks/use-routine-data';
 import { useTheme } from '@/hooks/use-theme';
-import { toDay, weekStart } from '@/lib/dates';
+import { toDay } from '@/lib/dates';
 import { assigneesOn, isDueToday, wasPlannedOn } from '@/lib/schedule';
 import { isWeekPlanned, planningDayOf } from '@/lib/planning';
 import { loadProblem } from '@/lib/load-problem';
@@ -209,9 +209,9 @@ export default function TodayScreen() {
       icon: dinner?.icon ?? lunch?.icon ?? '🍽️',
       title: 'Plan meals',
       detail: dinner || lunch ? [lunch && `🥪 ${lunch.name}`, dinner && `🍽️ ${dinner.name}`].filter(Boolean).join(' · ') : 'Nothing planned',
-      href: { pathname: '/meals', params: { week: toDay(weekStart(now)) } },
+      href: { pathname: '/food', params: { view: 'meals' } },
     },
-    { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: '/groceries' },
+    { icon: '🛒', title: 'Grocery list', detail: toBuy ? `${toBuy} to buy` : 'All stocked', href: { pathname: '/food', params: { view: 'groceries' } } },
   ];
 
   return (
