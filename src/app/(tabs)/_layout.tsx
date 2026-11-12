@@ -32,7 +32,7 @@ export default function TabLayout() {
       {/* Groceries and the meal plan. Settings is the gear at the top of every tab. */}
       <NativeTabs.Trigger name="food">
         <NativeTabs.Trigger.Label>Food</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="carrot" md="nutrition" />
+        <NativeTabs.Trigger.Icon sf="fork.knife" md="restaurant" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="scorecard">
         <NativeTabs.Trigger.Label>Track</NativeTabs.Trigger.Label>
