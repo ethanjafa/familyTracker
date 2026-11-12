@@ -1,10 +1,11 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { View } from 'react-native';
+import { useState } from 'react';
 
 import { useProjectItems, useProjects } from '@/api/projects';
 import { RoutineGoals } from '@/components/goals/routine-goals';
 import { TodoGoals } from '@/components/goals/todo-goals';
-import { HeaderButton, Screen, Segmented, SettingsButton } from '@/components/ui';
+import { AddBox } from '@/components/add-box';
+import { Screen, Segmented } from '@/components/ui';
 import { useRoutineData } from '@/hooks/use-routine-data';
 
 type Section = 'routines' | 'todos';
@@ -17,23 +18,18 @@ export default function GoalsScreen() {
   const projects = useProjects();
   const items = useProjectItems();
 
-  const add = () =>
-    router.push(section === 'routines' ? '/routine-form' : '/todo-form');
+  // Type a name and press "+": the form opens with it filled in, to pick the category and schedule (or date).
+  const [text, setText] = useState('');
+  const add = () => {
+    const name = text.trim();
+    setText('');
+    router.push({ pathname: section === 'routines' ? '/routine-form' : '/todo-form', params: name ? { name } : {} });
+  };
   const refetch = () => Promise.all([routines.refetch(), projects.refetch(), items.refetch()]);
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: 'Routines',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <SettingsButton />
-              <HeaderButton title="+" onPress={add} />
-            </View>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ title: 'Routines' }} />
       <Screen onRefresh={refetch} refreshing={routines.isRefetching || projects.isRefetching}>
         <Segmented
           options={[
@@ -42,6 +38,12 @@ export default function GoalsScreen() {
           ]}
           value={section}
           onChange={(v) => router.setParams({ section: v })}
+        />
+        <AddBox
+          value={text}
+          onChangeText={setText}
+          onAdd={add}
+          placeholder={section === 'routines' ? 'Add a routine, e.g. Wash dishes' : 'Add a to-do, e.g. Book the dentist'}
         />
         {section === 'routines' ? <RoutineGoals /> : <TodoGoals />}
       </Screen>

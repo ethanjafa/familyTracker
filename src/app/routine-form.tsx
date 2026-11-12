@@ -49,23 +49,26 @@ function slotsOf(s: Schedule): Slot[] {
 
 /** Create or edit a routine in one page: its category is a field (pick one, or type a new one). */
 export default function RoutineForm() {
-  const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; categoryId?: string; name?: string }>();
   const data = useRoutineData();
   if (data.problem) return <LoadError problem={data.problem} />;
   if (data.isLoading) return <Loading />;
   const existing = data.routines.find((r) => r.id === params.id);
   if (params.id && !existing) return <Loading />;
   const initial = existing?.category_id ?? params.categoryId ?? (data.categories.length ? '' : NEW_CATEGORY);
-  return <RoutineFormBody key={existing?.id ?? 'new'} existing={existing} initialCategoryId={initial} data={data} />;
+  return <RoutineFormBody key={existing?.id ?? 'new'} existing={existing} initialCategoryId={initial} initialName={params.name} data={data} />;
 }
 
 function RoutineFormBody({
   existing,
   initialCategoryId,
+  initialName,
   data,
 }: {
   existing: Routine | undefined;
   initialCategoryId: string;
+  /** Typed in the add box on Routines. */
+  initialName?: string;
   data: ReturnType<typeof useRoutineData>;
 }) {
   const { household, members, userId } = useHousehold();
@@ -78,7 +81,7 @@ function RoutineFormBody({
   const personal = lockedPersonal || personalTag;
   // Personal routines are yours alone, so there's nobody else to share them with.
   const isFamily = !personal;
-  const [name, setName] = useState(existing?.name ?? '');
+  const [name, setName] = useState(existing?.name ?? initialName ?? '');
   const [schedule, setSchedule] = useState<Schedule>(existing?.schedule ?? { type: 'daily' });
   const [assignees, setAssignees] = useState<string[]>(existing?.assignee_ids ?? []);
   const [turns, setTurns] = useState(existing ? hasDayAssignees(existing) : false);

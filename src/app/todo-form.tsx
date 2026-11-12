@@ -16,7 +16,7 @@ import { useHousehold } from '@/providers/household-provider';
 
 /** Create or edit a to-do in one page: its category is a field (pick one, or type a new one). */
 export default function TodoForm() {
-  const params = useLocalSearchParams<{ id?: string; categoryId?: string }>();
+  const params = useLocalSearchParams<{ id?: string; categoryId?: string; name?: string }>();
   const items = useProjectItems();
   const projects = useProjects();
   const problem = loadProblem(items, projects);
@@ -26,17 +26,20 @@ export default function TodoForm() {
   if (params.id && !existing) return <Loading />;
   const categories = projects.data ?? [];
   const initial = existing?.project_id ?? params.categoryId ?? (categories.length ? '' : NEW_CATEGORY);
-  return <TodoFormBody key={existing?.id ?? 'new'} existing={existing} categories={categories} initialCategoryId={initial} />;
+  return <TodoFormBody key={existing?.id ?? 'new'} existing={existing} categories={categories} initialCategoryId={initial} initialName={params.name} />;
 }
 
 function TodoFormBody({
   existing,
   categories,
   initialCategoryId,
+  initialName,
 }: {
   existing?: ProjectItem;
   categories: Project[];
   initialCategoryId: string;
+  /** Typed in the add box on Routines. */
+  initialName?: string;
 }) {
   const theme = useTheme();
   const { household, userId } = useHousehold();
@@ -47,7 +50,7 @@ function TodoFormBody({
   const lockedPersonal = category?.visibility === 'personal';
   const [personalTag, setPersonal] = useState(!!existing?.private_to);
   const personal = lockedPersonal || personalTag;
-  const [title, setTitle] = useState(existing?.title ?? '');
+  const [title, setTitle] = useState(existing?.title ?? initialName ?? '');
   const [targetDate, setTargetDate] = useState(existing?.due_date ?? '');
   // Backlog = no target date yet. Existing to-dos without a date are in the backlog.
   const [backlog, setBacklog] = useState(!!existing && !existing.due_date);

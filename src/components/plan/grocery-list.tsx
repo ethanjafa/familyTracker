@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { deleteGrocery, needGroceries, setGroceryStatus, setGroceryStore, useGroceries } from '@/api/groceries';
+import { AddBox } from '@/components/add-box';
 import { ThemedText } from '@/components/themed-text';
 import { Button, Card, Chip, EmptyState, LoadError, Loading, SectionTitle, styles } from '@/components/ui';
 import { FontFamilies, Radius, Spacing } from '@/constants/theme';
@@ -23,7 +24,6 @@ const STATUSES: { value: GroceryStatus; label: string }[] = [
 
 /** Groceries: one household list in three parts. Need to buy, we have, and the backlog (bought now and then). */
 export function GroceryList() {
-  const theme = useTheme();
   const { household } = useHousehold();
   const groceries = useGroceries();
   const [text, setText] = useState('');
@@ -78,38 +78,7 @@ export function GroceryList() {
 
   return (
     <>
-      <View style={[styles.row, { gap: Spacing.two }]}>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          onSubmitEditing={add}
-          placeholder="Add items to buy, e.g. milk, eggs"
-          placeholderTextColor={theme.textSecondary}
-          selectionColor={theme.tint}
-          returnKeyType="done"
-          style={[
-            local.input,
-            {
-              backgroundColor: theme.backgroundElement,
-              color: theme.text,
-              fontFamily: FontFamilies[500],
-            },
-          ]}
-        />
-        <Pressable
-          onPress={add}
-          style={({ pressed }) => [local.add, { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 }]}>
-          <ThemedText
-            style={{
-              color: theme.onTint,
-              fontWeight: 800,
-              fontSize: 22,
-              lineHeight: 26,
-            }}>
-            +
-          </ThemedText>
-        </Pressable>
-      </View>
+      <AddBox value={text} onChangeText={setText} onAdd={add} placeholder="Add items to buy, e.g. milk, eggs" />
 
       {all.length === 0 ? (
         <EmptyState
@@ -303,20 +272,6 @@ function StorePicker({ item, stores, onDone }: { item: GroceryItem; stores: stri
 }
 
 const local = StyleSheet.create({
-  input: {
-    flex: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
-  add: {
-    width: 50,
-    height: 50,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
